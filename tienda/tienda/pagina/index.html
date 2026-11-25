@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tienda de práctica</title>
+  <link rel="stylesheet" href="/estaticos/estilo.css">
+</head>
+<body>
+  <header class="barra">
+    <h1 data-t="pagina.titulo">Tienda de práctica</h1>
+    <p class="aviso" data-t="pagina.aviso">Tienda inventada para el curso «QA desde cero». Trae errores a propósito: encuéntralos.</p>
+    <label class="idioma"><span data-t="pagina.idioma">Idioma</span> <select id="idioma"></select></label>
+    <div id="quien" class="quien" hidden>
+      <span id="saludo"></span>
+      <button type="button" id="ver-carrito" aria-label="Carrito" data-t-aria="pagina.carrito">🛒 <span id="piezas">0</span></button>
+      <button type="button" id="ver-pedidos" data-t="pagina.mis_pedidos">Mis pedidos</button>
+      <button type="button" id="salir" class="discreto" data-t="pagina.salir">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="entrada" class="tarjeta" aria-labelledby="t-entrada">
+      <h2 id="t-entrada" data-t="pagina.entra">Entra a la tienda</h2>
+      <form id="form-entrada">
+        <label for="cliente" data-t="pagina.cliente">Cliente</label>
+        <input id="cliente" name="cliente" autocomplete="username" value="Marta">
+        <label for="contrasena" data-t="pagina.contrasena">Contraseña</label>
+        <input id="contrasena" name="contrasena" type="password" autocomplete="current-password">
+        <button type="submit" data-t="pagina.entrar">Entrar</button>
+        <p class="pista" data-t="pagina.pista">Clientes de prueba: Marta (marta-practica) y Luis (luis-practica).</p>
+      </form>
+    </section>
+
+    <section id="catalogo" aria-labelledby="t-catalogo" hidden>
+      <h2 id="t-catalogo" data-t="pagina.catalogo">Catálogo</h2>
+      <nav id="categorias" class="categorias" aria-label="Categorías" data-t-aria="pagina.categorias"></nav>
+      <ul id="productos" class="productos"></ul>
+    </section>
+
+    <section id="carrito" class="tarjeta" aria-labelledby="t-carrito" hidden>
+      <h2 id="t-carrito" data-t="pagina.tu_carrito">Tu carrito</h2>
+      <ul id="lineas" class="lineas"></ul>
+      <form id="form-cupon" class="cupon">
+        <label for="cupon" data-t="pagina.cupon">Cupón</label>
+        <input id="cupon" name="cupon" placeholder="BIENVENIDA10">
+        <button type="submit" data-t="pagina.aplicar">Aplicar</button>
+      </form>
+      <dl id="cuenta" class="cuenta"></dl>
+      <form id="form-pago" class="pago">
+        <label for="tarjeta" data-t="pagina.tarjeta">Tarjeta</label>
+        <input id="tarjeta" name="tarjeta" inputmode="numeric" value="4242 4242 4242 4242">
+        <label for="meses" data-t="pagina.forma_de_pago">Forma de pago</label>
+        <select id="meses" name="meses"></select>
+        <button type="submit" id="pagar" data-t="pagina.pagar">Pagar</button>
+      </form>
+    </section>
+
+    <section id="pedidos" class="tarjeta" aria-labelledby="t-pedidos" hidden>
+      <h2 id="t-pedidos" data-t="pagina.mis_pedidos">Mis pedidos</h2>
+      <ul id="lista-pedidos" class="lista-pedidos"></ul>
+    </section>
+
+    <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
+  </main>
+  <script src="/estaticos/app.js"></script>
+</body>
+</html>

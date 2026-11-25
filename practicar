@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# practicar — levanta la tienda de práctica del curso «QA desde cero» y te deja en su terminal.
+#
+#   ./practicar                  levanta la tienda (la primera vez construye la imagen) y entra a la terminal
+#   ./practicar error estado     qué errores sembrados están encendidos
+#   ./practicar error E1 on|off  enciende o apaga uno (E1, E2, E3, E4, E5, E6, E7 o E8)
+#   ./practicar reiniciar        deja la tienda como recién abierta (sin pedidos)
+#   ./practicar apagar           apaga la tienda; tu trabajo y los datos se quedan guardados
+#   ./practicar desde-cero       borra tu carpeta de práctica y los datos de la tienda, con confirmación
+#   ./practicar reconstruir      actualiza la imagen cuando el curso trae algo nuevo
+#   ./practicar reconstruir-limpio   la construye otra vez desde cero (vuelve a descargarlo todo)
+#
+#   TIENDA_IDIOMA=en ./practicar     la tienda en inglés (es, en, fr, pt o bg); la página también tiene su selector
+#
+# Corre en macOS (también con el bash 3.2 que trae), en Linux y en Windows con WSL2. Necesita Docker.
+#
+# Qué toca en tu computadora, y nada más: una imagen («curso-qa-tienda»), un contenedor con el mismo nombre
+# y dos volúmenes: «curso-qa-practica» (tu carpeta ~/practica) y «curso-qa-tienda-datos» (los pedidos y el
+# estado de la tienda). Todo lleva la etiqueta del curso; este guion solo borra lo que la trae.
+# La tienda queda en http://localhost:8080 y solo se ve desde tu computadora.
+set -u
+
+IMAGEN="curso-qa-tienda"
+CONTENEDOR="curso-qa-tienda"
+PRACTICA="curso-qa-practica"
+DATOS="curso-qa-tienda-datos"
+ETIQUETA="curso-qa=practica"
+PUERTO="${TIENDA_PUERTO:-8080}"
+IDIOMA="${TIENDA_IDIOMA:-es}"   # es, en, fr, pt o bg: el idioma de la tienda y de sus comandos
+AQUI="$(cd "$(dirname "$0")" && pwd)"
+case "$IDIOMA" in es|en|fr|pt|bg) ;; *) IDIOMA=es ;; esac
+
+# t clave [datos…] — el mensaje en el idioma del alumno (textos-practicar/xx.txt); si falta, en español.
+t() {
+  clave="$1"; shift
+  texto=$(grep -m1 "^${clave}=" "$AQUI/textos-practicar/$IDIOMA.txt" 2>/dev/null | cut -d= -f2-)
+  [ -n "$texto" ] || texto=$(grep -m1 "^${clave}=" "$AQUI/textos-practicar/es.txt" 2>/dev/null | cut -d= -f2-)
+  [ -n "$texto" ] || texto="$clave"
+  # shellcheck disable=SC2059 — el texto ES el formato: trae sus %s y sus \n
+  printf "${texto}\n" "$@"
+}
+
+revisar_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    t sin_docker
+    exit 1
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    t docker_mudo
+    case "$(uname -s)" in
+      Darwin)
+        t docker_mac ;;
+      *)
+        t docker_linux ;;
+    esac
+    t docker_otra
+    exit 1
+  fi
+}
+
+construir() {
+  t construyendo "$IMAGEN"
+  if ! docker build ${1+"$@"} --label "$ETIQUETA" -t "$IMAGEN" "$AQUI/tienda"; then
+    t no_construyo
+    exit 1
+  fi
+  t imagen_lista
+}
+
+# «docker container inspect» y no «docker inspect»: la imagen se llama igual que el contenedor, y un inspect a
+# secas encuentra la imagen cuando todavía no hay contenedor.
+corriendo() { [ "$(docker container inspect -f '{{.State.Running}}' "$CONTENEDOR" 2>/dev/null)" = "true" ]; }
+existe_contenedor() { docker container inspect "$CONTENEDOR" >/dev/null 2>&1; }
+del_curso() { [ "$(docker container inspect -f "{{ index .Config.Labels \"curso-qa\" }}" "$1" 2>/dev/null)" = "practica" ]; }
+volumen_del_curso() { [ "$(docker volume inspect -f '{{ index .Labels "curso-qa" }}' "$1" 2>/dev/null)" = "practica" ]; }
+
+asegurar_volumen() {
+  if docker volume inspect "$1" >/dev/null 2>&1; then
+    volumen_del_curso "$1" && return 0
+    t volumen_ajeno "$1"
+    exit 1
+  fi
+  docker volume create --label "$ETIQUETA" "$1" >/dev/null || { t volumen_no_creado "$1"; exit 1; }
+}
+
+# Espera a que la tienda conteste. La primera vez tarda unos segundos en preparar su base de datos.
+esperar_tienda() {
+  i=0
+  while [ $i -lt 60 ]; do
+    if docker exec "$CONTENEDOR" curl -fsS http://127.0.0.1:8080/api/salud >/dev/null 2>&1; then return 0; fi
+    corriendo || break
+    sleep 1; i=$((i + 1))
+  done
+  t no_arranco
+  docker logs --tail 20 "$CONTENEDOR" 2>&1 | sed 's/^/   /'
+  exit 1
+}
+
+levantar() {
+  if corriendo; then return 0; fi
+  if existe_contenedor; then
+    if ! del_curso "$CONTENEDOR"; then
+      t contenedor_ajeno "$CONTENEDOR"
+      exit 1
+    fi
+    docker start "$CONTENEDOR" >/dev/null || { t no_encendio; exit 1; }
+  else
+    docker image inspect "$IMAGEN" >/dev/null 2>&1 || construir
+    asegurar_volumen "$PRACTICA"
+    asegurar_volumen "$DATOS"
+    if ! docker run -d --name "$CONTENEDOR" --label "$ETIQUETA" -h tienda -e "TIENDA_IDIOMA=$IDIOMA" \
+        -p "127.0.0.1:${PUERTO}:8080" \
+        --mount "type=volume,src=$DATOS,dst=/var/lib/tienda" \
+        --mount "type=volume,src=$PRACTICA,dst=/home/alumno/practica" \
+        "$IMAGEN" >/dev/null; then
+      t no_levanto "$PUERTO"
+      docker rm "$CONTENEDOR" >/dev/null 2>&1
+      exit 1
+    fi
+  fi
+  esperar_tienda
+  t arriba "$PUERTO"
+}
+
+en_la_tienda() {
+  revisar_docker
+  levantar
+  docker exec -e "TIENDA_IDIOMA=$IDIOMA" -e "TIENDA_PUERTO=$PUERTO" "$CONTENEDOR" tienda "$@"
+}
+
+case "${1:-}" in
+  "")
+    revisar_docker
+    if [ ! -t 0 ] || [ ! -t 1 ]; then
+      t no_interactiva
+      exit 1
+    fi
+    levantar
+    # Los errores encendidos siguen encendidos aunque se reinicie o se apague la tienda: se avisa al entrar.
+    docker exec -e "TIENDA_IDIOMA=$IDIOMA" "$CONTENEDOR" tienda error avisos 2>/dev/null
+    t entrando
+    docker exec -it -u alumno -w /home/alumno/practica -e "TIENDA_PUERTO=$PUERTO" -e "TIENDA_IDIOMA=$IDIOMA" "$CONTENEDOR" bash -l
+    t saliste "$PUERTO"
+    ;;
+  error)
+    shift
+    en_la_tienda error "$@"
+    ;;
+  reiniciar)
+    en_la_tienda reiniciar
+    ;;
+  apagar)
+    revisar_docker
+    if corriendo; then
+      docker stop "$CONTENEDOR" >/dev/null && t apagada
+    else
+      t ya_apagada
+    fi
+    ;;
+  desde-cero)
+    revisar_docker
+    t borra_aviso
+    t borra_pregunta | tr -d '\n'
+    read -r respuesta || respuesta=""
+    # Sin distinguir mayúsculas; «si», «sí» y «da» sirven en cualquier idioma, además de la palabra del idioma.
+    palabra=$(t borra_palabra | tr '[:upper:]' '[:lower:]')
+    respuesta=$(printf '%s' "$respuesta" | tr '[:upper:]' '[:lower:]')
+    case "$respuesta" in
+      si|sí|SÍ|Sí|da|ДА|Да|"$palabra") ;;
+      *) t no_se_borro; exit 0 ;;
+    esac
+    if existe_contenedor; then
+      del_curso "$CONTENEDOR" || { t contenedor_ajeno_no_toque "$CONTENEDOR"; exit 1; }
+      docker rm -f "$CONTENEDOR" >/dev/null
+    fi
+    for v in "$PRACTICA" "$DATOS"; do
+      if docker volume inspect "$v" >/dev/null 2>&1; then
+        volumen_del_curso "$v" || { t volumen_ajeno_no_borro "$v"; continue; }
+        docker volume rm "$v" >/dev/null && t borrado "$v"
+      fi
+    done
+    t recien_abierta
+    ;;
+  reconstruir|reconstruir-limpio)
+    revisar_docker
+    if [ "$1" = "reconstruir" ]; then construir; else construir --pull --no-cache; fi
+    if existe_contenedor && del_curso "$CONTENEDOR"; then
+      # El contenedor viejo usa la imagen vieja. Se quita; los volúmenes (tu trabajo y los pedidos) se quedan.
+      docker rm -f "$CONTENEDOR" >/dev/null && t imagen_nueva
+    fi
+    ;;
+  *)
+    t no_conozco "$1"
+    t uso
+    exit 2
+    ;;
+esac

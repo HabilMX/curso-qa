@@ -1,0 +1,6 @@
+# La tienda
+fastapi
+uvicorn
+# Lo que usa el alumno (versiones de la especificación de educación, leídas en PyPI el 21-nov-2026)
+behave==1.3.3
+playwright==1.65.*

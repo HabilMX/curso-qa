@@ -1,0 +1,33 @@
+# Messages de ./practicar en français. Une ligne par message : clé=texte. « %s » est une donnée que met le script
+# (dans l'ordre où elle apparaît) ; « \n » est un saut de ligne. Les autres langues ont les mêmes clés.
+uso=Utilisation :\n  ./practicar                  démarre la boutique (la première fois, construit l'image) et ouvre le terminal\n  ./practicar error estado     quelles erreurs semées sont activées\n  ./practicar error E1 on|off  active ou désactive l'une d'elles (E1, E2, E3, E4, E5, E6, E7 ou E8)\n  ./practicar reiniciar        remet la boutique comme à son ouverture (sans commandes)\n  ./practicar apagar           arrête la boutique ; ton travail et les données restent enregistrés\n  ./practicar desde-cero       efface ton dossier de pratique et les données de la boutique, avec confirmation\n  ./practicar reconstruir      met à jour l'image quand le cours apporte du nouveau\n  ./practicar reconstruir-limpio   la reconstruit depuis zéro (retélécharge tout)\n\n  TIENDA_IDIOMA=es ./practicar     la boutique en espagnol (es, en, fr, pt ou bg)
+no_conozco=Je ne connais pas « %s ».
+sin_docker=❌ Je ne trouve pas la commande « docker » sur cet ordinateur.\n   Installe-la d'abord : la leçon 00, dans « Avant de commencer », explique comment sur chaque système.
+docker_mudo=❌ Docker est installé, mais je n'ai pas pu lui parler. Les causes les plus fréquentes :
+docker_mac=   • Sur Mac, Docker tourne dans un programme qui doit être ouvert.\n     Ouvre-le (Docker Desktop ou celui que tu utilises), attends qu'il indique qu'il tourne et recommence.
+docker_linux=   • Le service est arrêté. On le démarre avec :   sudo systemctl start docker\n   • Ton utilisateur n'est pas dans le groupe docker. La commande « groups » doit afficher « docker ».\n   • Sous Windows avec WSL2 : Docker Desktop est fermé, ou l'intégration avec ta distribution est désactivée.
+docker_otra=   Ce peut être autre chose. Lance   docker info   et suis l'erreur exacte qu'il te donne.
+construyendo=Construction de l'image « %s ». La première fois, elle télécharge Python, Node et un navigateur sans fenêtre :\ncela peut prendre plusieurs minutes. Ce qui était déjà construit est réutilisé.
+no_construyo=❌ L'image n'a pas pu être construite. Lis la PREMIÈRE erreur ci-dessus : ce peut être le réseau,\n   l'espace disque ou les permissions de Docker. Une fois corrigé, relance ./practicar
+imagen_lista=✅ Image prête.
+volumen_ajeno=❌ Il existe déjà un volume « %s » qui n'est pas de ce cours. Je n'y touche pas : renomme-le ou supprime-le toi-même.
+volumen_no_creado=❌ Je n'ai pas pu créer le volume « %s ».
+no_arranco=❌ La boutique n'a pas démarré. Voici ce qu'elle a dit en essayant :
+contenedor_ajeno=❌ Il existe déjà un conteneur « %s » qui n'est pas de ce cours. Je n'y touche pas.
+no_encendio=❌ Je n'ai pas pu allumer la boutique. Essaie  ./practicar reconstruir
+no_levanto=❌ Je n'ai pas pu démarrer la boutique. Si l'erreur dit « port is already allocated », le port %s\n   est utilisé par un autre programme : ferme-le, ou utilise un autre port avec   TIENDA_PUERTO=8081 ./practicar
+arriba=✅ La boutique est démarrée : http://localhost:%s
+no_interactiva=❌ ./practicar ouvre un terminal interactif : lance-le directement dans ton terminal,\n   sans tubes (|) ni redirections (< >).
+entrando=Entrée dans le terminal de la boutique. Pour sortir, tape  exit  (ou Ctrl+D).
+saliste=Tu es sorti du terminal. La boutique est TOUJOURS démarrée sur http://localhost:%s\nPour y revenir :  ./practicar   ·   pour l'arrêter :  ./practicar apagar
+apagada=✅ Boutique arrêtée. Ton travail et les commandes restent enregistrés.
+ya_apagada=La boutique était déjà arrêtée.
+borra_aviso=Ceci EFFACE ton dossier ~/practica de la boutique et toutes ses commandes. C'est irréversible.\nRien d'autre n'est effacé : ni l'image ni les fichiers de ton ordinateur.
+borra_pregunta=Pour confirmer, tape  oui  et appuie sur Entrée : 
+borra_palabra=oui
+no_se_borro=Rien n'a été effacé.
+contenedor_ajeno_no_toque=❌ Le conteneur « %s » n'est pas de ce cours. Je n'ai touché à rien.
+volumen_ajeno_no_borro=❌ Le volume « %s » n'est pas de ce cours ; je ne l'efface pas.
+borrado=✅ Effacé : %s
+recien_abierta=La prochaine fois que tu entres avec ./practicar, la boutique sera comme à son ouverture et ~/practica sera vide.
+imagen_nueva=La prochaine fois que tu entres, la boutique utilisera la nouvelle image.

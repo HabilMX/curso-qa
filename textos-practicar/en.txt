@@ -1,0 +1,33 @@
+# Messages of ./practicar in English. One line per message: key=text. «%s» is a value the script fills in
+# (in the order it appears); «\n» is a line break. The other languages have the same keys.
+uso=Usage:\n  ./practicar                  starts the store (the first time it builds the image) and opens the terminal\n  ./practicar error estado     which seeded errors are switched on\n  ./practicar error E1 on|off  switches one on or off (E1, E2, E3, E4, E5, E6, E7 or E8)\n  ./practicar reiniciar        leaves the store as if it had just opened (no orders)\n  ./practicar apagar           stops the store; your work and the data stay saved\n  ./practicar desde-cero       deletes your practice folder and the store's data, after asking you\n  ./practicar reconstruir      updates the image when the course brings something new\n  ./practicar reconstruir-limpio   builds it again from scratch (downloads everything again)\n\n  TIENDA_IDIOMA=es ./practicar     the store in Spanish (es, en, fr, pt or bg)
+no_conozco=I don't know «%s».
+sin_docker=❌ I can't find the «docker» command on this computer.\n   Install it first: lesson 00, in «Before you start», explains how on each system.
+docker_mudo=❌ Docker is installed, but I couldn't talk to it. The most common causes:
+docker_mac=   • On a Mac, Docker runs inside a program that has to be open.\n     Open it (Docker Desktop or the one you use), wait until it says it is running, and try again.
+docker_linux=   • The service is stopped. Start it with:   sudo systemctl start docker\n   • Your user is not in the docker group. The «groups» command should show «docker».\n   • On Windows with WSL2: Docker Desktop is closed, or the integration with your distribution is off.
+docker_otra=   It could be something else. Run   docker info   and follow the exact error it gives you.
+construyendo=Building the image «%s». The first time it downloads Python, Node and a headless browser:\nit can take several minutes. Whatever was already built is reused.
+no_construyo=❌ The image could not be built. Read the FIRST error above: it may be the network,\n   disk space or Docker permissions. Once you fix it, run ./practicar again
+imagen_lista=✅ Image ready.
+volumen_ajeno=❌ There is already a volume «%s» that does not belong to this course. I won't touch it: rename it or delete it yourself.
+volumen_no_creado=❌ I couldn't create the volume «%s».
+no_arranco=❌ The store did not start. This is what it said when it tried:
+contenedor_ajeno=❌ There is already a container «%s» that does not belong to this course. I won't touch it.
+no_encendio=❌ I couldn't switch the store on. Try  ./practicar reconstruir
+no_levanto=❌ I couldn't start the store. If the error says «port is already allocated», port %s\n   is used by another program: close it, or use another port with   TIENDA_PUERTO=8081 ./practicar
+arriba=✅ The store is up: http://localhost:%s
+no_interactiva=❌ ./practicar opens an interactive terminal: run it directly in your terminal,\n   without pipes (|) or redirections (< >).
+entrando=Entering the store's terminal. To leave, type  exit  (or Ctrl+D).
+saliste=You left the terminal. The store is STILL up at http://localhost:%s\nTo go back in:  ./practicar   ·   to stop it:  ./practicar apagar
+apagada=✅ Store stopped. Your work and the orders are still saved.
+ya_apagada=The store was already stopped.
+borra_aviso=This DELETES your ~/practica folder for the store and all its orders. It cannot be undone.\nNothing else is deleted: not the image and not files on your computer.
+borra_pregunta=To confirm, type  yes  and press Enter: 
+borra_palabra=yes
+no_se_borro=Nothing was deleted.
+contenedor_ajeno_no_toque=❌ The container «%s» does not belong to this course. I didn't touch anything.
+volumen_ajeno_no_borro=❌ The volume «%s» does not belong to this course; I won't delete it.
+borrado=✅ Deleted: %s
+recien_abierta=The next time you enter with ./practicar, the store will be as if just opened and ~/practica will be empty.
+imagen_nueva=The next time you enter, the store will use the new image.

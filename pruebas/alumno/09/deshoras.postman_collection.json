@@ -1,0 +1,60 @@
+{
+ "info": {
+  "name": "Deshoras",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "item": [
+  {
+   "name": "La hora de la tienda",
+   "request": {
+    "method": "GET",
+    "url": "{{base}}/api/salud"
+   },
+   "event": [{"listen": "test", "script": {"exec": [
+    "pm.test('código 200', () => pm.response.to.have.status(200));",
+    "pm.collectionVariables.set('hoy', pm.response.json().hora_de_la_tienda.slice(0, 10));"
+   ]}}]
+  },
+  {
+   "name": "La clienta inicia sesión",
+   "request": {
+    "method": "POST",
+    "url": "{{base}}/api/sesiones",
+    "header": [{"key": "Content-Type", "value": "application/json"}],
+    "body": {"mode": "raw", "raw": "{\"cliente\":\"{{cliente}}\",\"contrasena\":\"{{contrasena}}\"}"}
+   },
+   "event": [{"listen": "test", "script": {"exec": [
+    "pm.test('código 201', () => pm.response.to.have.status(201));",
+    "pm.collectionVariables.set('token', pm.response.json().token);"
+   ]}}]
+  },
+  {
+   "name": "Una playera al carrito",
+   "request": {
+    "method": "PUT",
+    "url": "{{base}}/api/carrito/productos/playera-azul",
+    "header": [
+     {"key": "Content-Type", "value": "application/json"},
+     {"key": "Authorization", "value": "Bearer {{token}}"}
+    ],
+    "body": {"mode": "raw", "raw": "{\"cantidad\":1}"}
+   },
+   "event": [{"listen": "test", "script": {"exec": [
+    "pm.test('código 200', () => pm.response.to.have.status(200));"
+   ]}}]
+  },
+  {
+   "name": "Hace su pedido",
+   "request": {
+    "method": "POST",
+    "url": "{{base}}/api/pedidos",
+    "header": [{"key": "Authorization", "value": "Bearer {{token}}"}]
+   },
+   "event": [{"listen": "test", "script": {"exec": [
+    "pm.test('código 201', () => pm.response.to.have.status(201));",
+    "pm.test('mismo año que la tienda', () => pm.expect(pm.response.json().creado.slice(0, 4)).to.eql(pm.collectionVariables.get('hoy').slice(0, 4)));",
+    "pm.test('mismo día que la tienda', () => pm.expect(pm.response.json().creado.slice(0, 10)).to.eql(pm.collectionVariables.get('hoy')));"
+   ]}}]
+  }
+ ]
+}

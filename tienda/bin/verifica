@@ -1,0 +1,1249 @@
+#!/usr/bin/env python3
+"""verifica NN — revisa lo que hiciste en la lección NN y te dice qué falta.
+
+Mide la tienda (sus pedidos, sus respuestas), no lo que tú dices que hiciste. Nunca califica la redacción.
+"""
+
+import itertools
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+URL = os.environ.get("TIENDA_URL", "http://127.0.0.1:8080")
+PAGINA_DEL_ALUMNO = f"http://localhost:{os.environ.get('TIENDA_PUERTO', '8080')}"
+
+
+def _cargar_textos():
+    """Los textos en los cinco idiomas: en el contenedor, /opt/pasos/textos_tienda; en el repo, junto a la tienda."""
+    try:
+        import textos_tienda
+        return textos_tienda
+    except ImportError:
+        import importlib.util
+        from pathlib import Path
+        ruta = Path(__file__).resolve().parents[1] / "tienda" / "textos" / "__init__.py"
+        spec = importlib.util.spec_from_file_location("textos_tienda", ruta)
+        modulo = importlib.util.module_from_spec(spec)
+        sys.modules["textos_tienda"] = modulo
+        spec.loader.exec_module(modulo)
+        return modulo
+
+
+textos = _cargar_textos()
+IDIOMA = textos.omision()  # TIENDA_IDIOMA, que fija el ./practicar
+
+
+def T(clave, **datos):
+    return textos.t(clave, IDIOMA, **datos)
+POSTERIORES_AL_PAGO = ("pagado", "en almacén", "enviado", "entregado")
+
+
+def pedir(ruta: str):
+    """(código, cuerpo) de un GET; (None, motivo) si la tienda no contesta."""
+    try:
+        peticion = urllib.request.Request(URL + ruta, headers={"Accept-Language": IDIOMA})
+        with urllib.request.urlopen(peticion, timeout=10) as r:
+            cuerpo = r.read()
+            tipo = r.headers.get("Content-Type", "")
+            return r.status, json.loads(cuerpo) if "json" in tipo else cuerpo.decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        return e.code, None
+    except (urllib.error.URLError, TimeoutError) as e:
+        return None, str(getattr(e, "reason", e))
+
+
+def punto(ok: bool, texto: str, falta: str = "") -> bool:
+    print(f"{'✅' if ok else '❌'} {texto}")
+    if not ok and falta:
+        print(f"   → {falta}")
+    return ok
+
+
+def leccion_00() -> bool:
+    codigo, salud = pedir("/api/salud")
+    arriba = punto(codigo == 200 and isinstance(salud, dict) and salud.get("estado") == "arriba",
+                   T("verifica.00.api"), T("verifica.00.api_falta"))
+    if not arriba:
+        return False
+    codigo, pagina = pedir("/")
+    pagina_ok = punto(codigo == 200 and isinstance(pagina, str) and "Tienda de práctica" in pagina,
+                      T("verifica.00.pagina"),
+                      T("verifica.00.pagina_falta").replace("http://localhost:8080", PAGINA_DEL_ALUMNO))
+    codigo, pedidos = pedir("/control/pedidos")
+    if codigo != 200:
+        return punto(False, T("verifica.00.pedidos"), T("verifica.00.pedidos_falta"))
+    de_marta = [p for p in pedidos if p["cliente"] == "Marta"]
+    pagados = [p for p in de_marta if p["estado"] in POSTERIORES_AL_PAGO]
+    if pagados:
+        compra = punto(True, T("verifica.00.compra_ok", id=pagados[0]["id"], total=pagados[0]["total"]["texto"]))
+    elif de_marta:
+        compra = punto(False, T("verifica.00.compra"), T("verifica.00.sin_pagar", n=len(de_marta)))
+    else:
+        compra = punto(False, T("verifica.00.compra"), T("verifica.00.sin_pedidos"))
+    return arriba and pagina_ok and compra
+
+
+# ---------------------------------------------------------------- 01 a 05: los escenarios del alumno
+
+PRACTICA = Path(os.environ.get("VERIFICA_PRACTICA", Path.home() / "practica"))
+
+
+def cambiar_error(error: str, encendido: bool) -> None:
+    peticion = urllib.request.Request(f"{URL}/control/errores/{error}", method="PUT",
+                                      data=json.dumps({"encendido": encendido}).encode(),
+                                      headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(peticion, timeout=10).read()
+
+
+def correr(archivos: list[Path]) -> dict:
+    """Corre los .feature del alumno con behave en una carpeta aparte (sus archivos + el catálogo de pasos)."""
+    with tempfile.TemporaryDirectory() as d:
+        for archivo in archivos:
+            shutil.copy(archivo, Path(d) / archivo.name)
+        (Path(d) / "steps").mkdir()
+        (Path(d) / "steps" / "tienda.py").write_text("from pasos_tienda import *  # noqa\n", encoding="utf-8")
+        r = subprocess.run([sys.executable, "-m", "behave", "--no-capture", "--format", "plain", "--no-color",
+                            *(a.name for a in archivos)], cwd=d, capture_output=True, text=True, timeout=600,
+                           env={**os.environ, "TIENDA_URL": URL})
+    salida = r.stdout + r.stderr
+    resumen = re.search(r"(\d+) scenarios? passed, (\d+) failed(?:, (\d+) errors?)?", salida)
+    pasaron, fallaron, errores = (int(x or 0) for x in resumen.groups()) if resumen else (0, 0, 0)
+    return {"pasaron": pasaron, "rojos": fallaron + errores,
+            "sin_frase": sorted({m.strip() for m in re.findall(r"^\s+(.+?) \.\.\. undefined", salida, re.M)}),
+            "fallas": re.findall(r"ASSERT FAILED: (.+)", salida)[:3],
+            "roto": resumen is None, "salida": salida}
+
+
+def escenarios(archivo_nombre: str, error: str | None, tambien: str = "") -> bool:
+    """El control del error: verdes con la tienda limpia y, si la lección tiene error, al menos uno rojo con él.
+
+    `tambien` es un patrón de archivos que se corren junto con el principal (la L05 pone las filas en inglés aparte).
+    """
+    archivo = PRACTICA / archivo_nombre
+    archivos = [archivo] + sorted(p for p in PRACTICA.glob(tambien) if p != archivo) if tambien else [archivo]
+    if not punto(archivo.is_file(), T("verifica.archivo", archivo=archivo_nombre),
+                 T("verifica.archivo_falta", archivo=archivo_nombre)):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    try:
+        limpia = correr(archivos)
+        if limpia["roto"]:
+            return punto(False, T("verifica.forma", archivo=archivo_nombre),
+                         T("verifica.forma_falta", detalle="\n".join(limpia["salida"].strip().splitlines()[-6:])))
+        if not punto(not limpia["sin_frase"], T("verifica.frases", archivo=archivo_nombre),
+                     T("verifica.frases_falta", frases="\n".join(f"     · {f}" for f in limpia["sin_frase"][:5]))):
+            return False
+        total = limpia["pasaron"] + limpia["rojos"]
+        if total == 0:
+            return punto(False, T("verifica.escenarios", archivo=archivo_nombre),
+                         T("verifica.sin_escenarios", archivo=archivo_nombre))
+        if not punto(total > 0 and limpia["rojos"] == 0, T("verifica.limpia", n=total),
+                     T("verifica.limpia_falta", rojos=limpia["rojos"], n=total,
+                       detalle="\n".join(f"     · {f}" for f in limpia["fallas"]))):
+            return False
+        if error is None:
+            return True
+        cambiar_error(error, True)
+        try:
+            con_error = correr(archivos)
+        finally:
+            cambiar_error(error, False)
+        return punto(con_error["rojos"] >= 1, T("verifica.con_error", error=error, rojos=con_error["rojos"]),
+                     T("verifica.con_error_falta", error=error))
+    finally:
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+# Las variables de la L05 y sus valores, como los escribe la lección en cada idioma (monto, cupón, cliente, idioma).
+VALORES_05 = {
+    "es": (["sin cupón", "por primera vez", "ya usado"], ["Marta", "Luis"], ["español", "inglés"]),
+    "en": (["no coupon", "first time", "already used"], ["Marta", "Luis"], ["Spanish", "English"]),
+    "fr": (["sans coupon", "première fois", "déjà utilisé"], ["Marta", "Luis"], ["espagnol", "anglais"]),
+    "pt": (["sem cupom", "primeira vez", "já usado"], ["Marta", "Luis"], ["espanhol", "inglês"]),
+    "bg": (["без купон", "за първи път", "вече използван"], ["Марта", "Луис"], ["испански", "английски"]),
+}
+MONTOS_05 = ["$600.00", "$1,110.00", "$3,330.00"]
+
+
+def _tabla(texto: str):
+    filas = [[c.strip() for c in l.strip().strip("|").split("|")] for l in texto.splitlines() if l.strip().startswith("|")]
+    filas = [f for f in filas if not all(re.fullmatch(r":?-+:?", c) for c in f)]
+    if len(filas) < 2:
+        return None
+    columnas = [i for i, c in enumerate(filas[0]) if c != "#"]
+    return [[f[i] if i < len(f) else "" for i in columnas] for f in filas[1:]]
+
+
+def pares() -> bool:
+    archivo = PRACTICA / "pares.md"
+    tabla = _tabla(archivo.read_text(encoding="utf-8")) if archivo.is_file() else None
+    if not punto(tabla is not None and all(len(f) == 4 for f in tabla), T("verifica.05.tabla"),
+                 T("verifica.05.tabla_falta")):
+        return False
+    cupones, clientes, idiomas = VALORES_05[IDIOMA]
+    valores = [MONTOS_05, cupones, clientes, idiomas]
+    normal = lambda v: re.sub(r"\s+", " ", v.strip().lower())
+    vistos = []
+    for n, fila in enumerate(tabla, 1):
+        limpia = []
+        for k, celda in enumerate(fila):
+            encontrado = next((v for v in valores[k] if normal(v) == normal(celda)), None)
+            if encontrado is None:
+                return punto(False, T("verifica.05.tabla"),
+                             T("verifica.05.valor_raro", fila=n, valor=celda, valores=" · ".join(valores[k])))
+            limpia.append(encontrado)
+        vistos.append(limpia)
+    faltan = [f"{a} + {b}"
+              for i, j in itertools.combinations(range(4), 2)
+              for a in valores[i] for b in valores[j]
+              if not any(f[i] == a and f[j] == b for f in vistos)]
+    total = sum(len(valores[i]) * len(valores[j]) for i, j in itertools.combinations(range(4), 2))
+    return punto(not faltan, T("verifica.05.pares", total=total),
+                 T("verifica.05.pares_falta", cubiertos=total - len(faltan), total=total,
+                   faltan="\n".join(f"     · {f}" for f in faltan[:6])))
+
+
+# ---------------------------------------------------------------- 07: la colección de newman del alumno
+
+# Los cinco errores de la hoja de la L06: (código, método, ruta) que el alumno provocó con curl, en cualquier orden.
+HOJA_06 = (("401", "GET", re.compile(r"/api/pedidos")),
+           ("404", "GET", re.compile(r"/api/productos/zapatos")),
+           ("422", "PUT", re.compile(r"/api/carrito/productos/playera-azul")),
+           ("400", "PUT", re.compile(r"/api/carrito/productos/playera-azul")),
+           ("409", "POST", re.compile(r"/api/pedidos/\d+/pago")))
+
+
+def leccion_06() -> bool:
+    """La práctica con curl de la L06, leída del registro de peticiones que la tienda guarda desde el último reinicio:
+    una compra de Marta pagada por la API, los cinco errores de la hoja, y E1 apagado al terminar."""
+    codigo, registro = pedir("/control/peticiones")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    if not punto(bool(registro), T("verifica.06.registro"), T("verifica.06.registro_falta")):
+        return False
+    vio = [(str(r["codigo"]), r["metodo"], r["ruta"]) for r in registro]
+    # Los pedidos nacen y se pagan solo por la API (la página también la usa) y el reinicio los borra junto con el
+    # registro: un pedido pagado de Marta es la compra hecha desde el último reinicio.
+    ok = punto(_pagados_11() >= 1, T("verifica.06.compra"), T("verifica.06.compra_falta"))
+    for c, metodo, ruta in HOJA_06:
+        hecho = any(cod == c and met == metodo and ruta.fullmatch(r) for cod, met, r in vio)
+        ok = punto(hecho, T(f"verifica.06.c{c}"), T(f"verifica.06.c{c}_falta")) and ok
+    codigo, errores = pedir("/control/errores")
+    return punto(codigo == 200 and not errores.get("E1"), T("verifica.06.e1"), T("verifica.06.e1_falta")) and ok
+
+
+COLECCION_07 = "tienda.postman_collection.json"
+TOPE_SCRIPT = os.environ.get("VERIFICA_TOPE_SCRIPT_MS", "15000")  # milisegundos que newman le da a cada script
+AMBIENTE_07 = "local.postman_environment.json"
+# Lo que la colección no debe traer escrito a mano: todo sale del ambiente (base, cliente, contrasena).
+A_MANO = [(re.compile(r"marta-practica", re.I), "marta-practica"), (re.compile(r"\bmarta\b", re.I), "Marta"),
+          (re.compile(r"localhost|127\.0\.0\.1|https?://", re.I), "URL")]
+
+
+def _peticiones(items, ruta=()):
+    """(nombre, petición, scripts) de cada petición de la colección, también adentro de carpetas."""
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        nombre = " / ".join((*ruta, str(item.get("name", "?"))))
+        if isinstance(item.get("item"), list):
+            yield from _peticiones(item["item"], (*ruta, str(item.get("name", "?"))))
+        if "request" in item:
+            scripts = []
+            for e in item.get("event", []) if isinstance(item.get("event"), list) else []:
+                exec_ = (e.get("script") or {}).get("exec", []) if isinstance(e, dict) else []
+                scripts.append("\n".join(map(str, exec_)) if isinstance(exec_, list) else str(exec_))
+            yield nombre, item["request"], "\n".join(scripts)
+
+
+# El nombre de una prueba es texto para el alumno, no una petición: «pm.test('Marta entra a localhost', …)» está bien.
+NOMBRE_DE_PRUEBA = re.compile(r"""(pm\.test\s*\(\s*)(['"`])(?:\\.|(?!\2).)*\2""", re.S)
+
+
+def _url_de(peticion) -> str:
+    """La URL como la arma newman: «raw» si lo trae; si no, host + path."""
+    url = peticion.get("url", "") if isinstance(peticion, dict) else peticion
+    if not isinstance(url, dict):
+        return str(url)
+    if url.get("raw"):
+        return str(url["raw"])
+    host = url.get("host", "")
+    host = ".".join(map(str, host)) if isinstance(host, list) else str(host)
+    camino = url.get("path", "")
+    camino = "/".join(map(str, camino)) if isinstance(camino, list) else str(camino)
+    return host + ("/" + camino.lstrip("/") if camino else "")
+
+
+def _textos(valor) -> list:
+    """Todos los textos de un valor JSON (llaves y valores), en orden."""
+    if isinstance(valor, dict):
+        return [t for k, v in valor.items() for t in (str(k), *_textos(v))]
+    if isinstance(valor, list):
+        return [t for v in valor for t in _textos(v)]
+    return [] if valor is None else [str(valor)]
+
+
+def _url_armada(peticion) -> str:
+    """La URL de una petición armada de sus partes, aunque traiga «raw»: host con puntos, port, path y query."""
+    url = peticion.get("url") if isinstance(peticion, dict) else None
+    if not isinstance(url, dict):
+        return ""
+    host = url.get("host", "")
+    host = ".".join(map(str, host)) if isinstance(host, list) else str(host)
+    port = f":{url['port']}" if url.get("port") else ""
+    camino = url.get("path", "")
+    camino = "/".join(map(str, camino)) if isinstance(camino, list) else str(camino)
+    query = "&".join(f"{q.get('key', '')}={q.get('value', '')}" for q in url.get("query", [])
+                     if isinstance(q, dict)) if isinstance(url.get("query"), list) else ""
+    return host + port + ("/" + camino.lstrip("/") if camino else "") + ("?" + query if query else "")
+
+
+def _a_mano(coleccion: dict, vetadas: list) -> list[str]:
+    """Dónde trae la colección algo escrito a mano: URL que no empieza con {{base}}, o una de las palabras vetadas
+    (Marta, su contraseña, una dirección) en la petición o en sus scripts. Los nombres de las pruebas no cuentan."""
+    hallazgos = []
+    for nombre, peticion, scripts in _peticiones(coleccion.get("item")):
+        url = _url_de(peticion)
+        if not url.startswith("{{base}}"):
+            hallazgos.append(T("verifica.07.url_sin_base", peticion=nombre, url=url))
+        # Toda la petición —URL completa (raw, host, path, query), cabeceras y cuerpo— más sus scripts sin los nombres
+        # de las pruebas. Los textos se juntan tal cual (no con json.dumps: un tabulador volvería «\tMarta» y la
+        # palabra perdería su orilla).
+        sin_descripcion = {k: v for k, v in peticion.items() if k != "description"} if isinstance(peticion, dict) \
+            else peticion
+        # Más la URL armada de sus partes (host+port+path+query): Postman exporta una IP partida por puntos.
+        texto = "\n".join([*_textos(sin_descripcion), _url_armada(peticion)]) + "\n" + \
+            NOMBRE_DE_PRUEBA.sub(r"\1''", scripts)
+        for patron, que in vetadas:
+            if patron.search(texto):
+                hallazgos.append(T("verifica.07.a_mano", peticion=nombre, que=que))
+    return hallazgos
+
+
+def _newman(coleccion: Path, ambiente: dict) -> dict:
+    """Corre la colección con ese ambiente; devuelve las pruebas que pasaron y las que fallaron (del reporte JSON)."""
+    if shutil.which("newman") is None:
+        return {"sin_newman": True}
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "ambiente.json").write_text(json.dumps(ambiente), encoding="utf-8")
+        try:
+            r = subprocess.run(["newman", "run", str(coleccion), "-e", str(Path(d) / "ambiente.json"), "--color",
+                                "off", "--timeout-request", "15000", "--timeout-script", TOPE_SCRIPT, "--reporters",
+                                "cli,json", "--reporter-json-export", str(Path(d) / "reporte.json")],
+                               capture_output=True, text=True, timeout=300)
+            salida = (r.stdout + r.stderr).strip().splitlines()[-6:]
+        except subprocess.TimeoutExpired:
+            return {"roto": True, "salida": ["(newman no terminó en 300 s)"]}
+        try:
+            run = json.loads((Path(d) / "reporte.json").read_text(encoding="utf-8"))["run"]
+        except (OSError, ValueError, KeyError):
+            return {"roto": True, "salida": salida}
+    pruebas = run["stats"]["assertions"]
+    fallas = [f"{f.get('source', {}).get('name', '?')}: {f.get('error', {}).get('message', '')}"
+              for f in run.get("failures", [])]
+    # Un script que truena o que no termina (newman lo corta en TOPE_SCRIPT) cuenta como rojo, aunque sus pruebas no
+    # lleguen a correr: corrida sin tope, esa colección se quedaría colgada.
+    scripts = run["stats"].get("prerequestScripts", {}).get("failed", 0) + \
+        run["stats"].get("testScripts", {}).get("failed", 0)
+    return {"total": pruebas["total"], "rojas": pruebas["failed"] + run["stats"]["requests"]["failed"] + scripts,
+            "fallas": fallas[:3]}
+
+
+def _sesiones() -> dict:
+    return json.loads(urllib.request.urlopen(URL + "/control/sesiones", timeout=10).read())
+
+
+def _reiniciar() -> None:
+    urllib.request.urlopen(urllib.request.Request(URL + "/control/reinicio", method="POST"), timeout=10).read()
+
+
+def _leer_json(archivo: Path):
+    # «utf-8-sig»: el Bloc de notas guarda con BOM, y newman lo lee igual.
+    return json.loads(archivo.read_text(encoding="utf-8-sig"))
+
+
+def _ambiente(valores: list, **cambios) -> dict:
+    """El ambiente del alumno con sus variables (también las que agregó), cambiando solo lo indicado."""
+    vistos = set()
+    salida = []
+    for v in valores:
+        k = v["key"]
+        vistos.add(k)
+        salida.append({**v, "value": cambios.get(k, v.get("value", "")), "enabled": True} if k in cambios else v)
+    salida += [{"key": k, "value": x} for k, x in cambios.items() if k not in vistos]
+    return {"values": salida}
+
+
+def leccion_07() -> bool:
+    coleccion, ambiente = PRACTICA / COLECCION_07, PRACTICA / AMBIENTE_07
+    hay_c = punto(coleccion.is_file(), T("verifica.archivo", archivo=COLECCION_07),
+                  T("verifica.archivo_falta", archivo=COLECCION_07))
+    hay_a = punto(ambiente.is_file(), T("verifica.archivo", archivo=AMBIENTE_07),
+                  T("verifica.archivo_falta", archivo=AMBIENTE_07))
+    if not (hay_c and hay_a):
+        return False
+    try:
+        datos_c, datos_a = _leer_json(coleccion), _leer_json(ambiente)
+    except (OSError, ValueError):
+        return punto(False, T("verifica.07.json"), T("verifica.07.json_falta"))
+    if not (isinstance(datos_c, dict) and isinstance(datos_c.get("item"), list) and isinstance(datos_a, dict)
+            and isinstance(datos_a.get("values"), list)
+            and all(isinstance(v, dict) and isinstance(v.get("key"), str) for v in datos_a["values"])):
+        return punto(False, T("verifica.07.json"), T("verifica.07.no_es_coleccion"))
+    valores = datos_a["values"]
+    # Una variable con «enabled: false» newman no la usa: para el alumno es como si no estuviera.
+    activos = {v["key"]: v.get("value", "") for v in valores if v.get("enabled", True) is not False}
+    faltan = [k for k in ("base", "cliente", "contrasena") if k not in activos]
+    if not punto(not faltan, T("verifica.07.ambiente"), T("verifica.07.ambiente_falta", faltan=", ".join(faltan))):
+        return False
+    a_mano = _a_mano(datos_c, A_MANO)
+    if not punto(not a_mano, T("verifica.07.todo_del_ambiente"),
+                 "\n".join(f"     · {h}" for h in a_mano[:6])):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    # La tienda del alumno es la de adentro del contenedor: su «localhost:8080» es esta misma URL.
+    propio = _ambiente(valores, base=URL)
+    try:
+        _reiniciar()
+        limpia = _newman(coleccion, propio)
+        if limpia.get("sin_newman"):
+            return punto(False, T("verifica.07.newman"), T("verifica.07.sin_newman"))
+        if limpia.get("roto"):
+            return punto(False, T("verifica.07.newman"), T("verifica.07.newman_roto",
+                                                            detalle="\n".join(limpia["salida"])))
+        if not punto(limpia["total"] > 0 and limpia["rojas"] == 0, T("verifica.07.limpia", n=limpia["total"]),
+                     T("verifica.07.limpia_falta", rojas=limpia["rojas"], n=limpia["total"],
+                       detalle="\n".join(f"     · {f}" for f in limpia["fallas"]))):
+            return False
+        _reiniciar()
+        cambiar_error("E1", True)
+        try:
+            con_e1 = _newman(coleccion, propio)
+        finally:
+            cambiar_error("E1", False)
+        if not punto(con_e1.get("rojas", 0) >= 1, T("verifica.07.con_error", error="E1", rojas=con_e1.get("rojas", 0)),
+                     T("verifica.07.con_error_falta", error="E1")):
+            return False
+        _reiniciar()
+        con_luis = _newman(coleccion, _ambiente(valores, base=URL, cliente="Luis", contrasena="luis-practica"))
+        verde = con_luis.get("total", 0) > 0 and con_luis.get("rojas", 1) == 0
+        # Con quién entró la colección: las sesiones que abrió desde el reinicio (no el carrito, que el alumno
+        # puede dejar como lo encontró).
+        quien = _sesiones() if verde else {}
+        de_luis = verde and quien.get("Luis", 0) > 0 and quien.get("Marta", 0) == 0
+        return punto(de_luis, T("verifica.07.luis"),
+                     T("verifica.07.luis_falta") if verde else
+                     T("verifica.07.luis_rojo", detalle="\n".join(f"     · {f}" for f in con_luis.get("fallas", []))))
+    finally:
+        _reiniciar()
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+# ---------------------------------------------------------------- 08: permisos y reintentos (newman)
+
+COLECCION_08 = "permisos.postman_collection.json"
+AMBIENTES_08 = ("local.postman_environment.json", "luis.postman_environment.json")
+LLAVES_08 = ("base", "cliente", "contrasena", "otra_cliente", "otra_contrasena")
+A_MANO_08 = A_MANO + [(re.compile(r"luis-practica", re.I), "luis-practica"), (re.compile(r"\bluis\b", re.I), "Luis")]
+TARDA_08 = float(os.environ.get("VERIFICA_08_TARDA", "7"))   # segundos que tarda la pasarela en las corridas lentas
+
+
+def _pasarela(modo: str, segundos: float = 0) -> None:
+    peticion = urllib.request.Request(URL + "/control/pasarela", method="PUT",
+                                      data=json.dumps({"modo": modo, "segundos": segundos}).encode(),
+                                      headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(peticion, timeout=10).read()
+
+
+def _corrida_08(coleccion: Path, ambiente: dict, error: str | None, modo: str) -> dict:
+    """Una corrida desde la tienda recién abierta, con ese error encendido (o ninguno) y esa pasarela."""
+    _reiniciar()
+    if modo == "tarda":
+        _pasarela("tarda", TARDA_08)
+    if error:
+        cambiar_error(error, True)
+    try:
+        return _newman(coleccion, ambiente)
+    finally:
+        if error:
+            cambiar_error(error, False)
+
+
+def _detalle(r: dict) -> str:
+    return "\n".join(f"     · {f}" for f in r.get("fallas", []))
+
+
+def leccion_08() -> bool:
+    coleccion = PRACTICA / COLECCION_08
+    hay = [punto((PRACTICA / a).is_file(), T("verifica.archivo", archivo=a), T("verifica.archivo_falta", archivo=a))
+           for a in (COLECCION_08, *AMBIENTES_08)]
+    if not all(hay):
+        return False
+    try:
+        datos_c = _leer_json(coleccion)
+        ambientes = [_leer_json(PRACTICA / a) for a in AMBIENTES_08]
+    except (OSError, ValueError):
+        return punto(False, T("verifica.07.json"), T("verifica.07.json_falta"))
+    if not (isinstance(datos_c, dict) and isinstance(datos_c.get("item"), list)
+            and all(isinstance(a, dict) and isinstance(a.get("values"), list)
+                    and all(isinstance(v, dict) and isinstance(v.get("key"), str) for v in a["values"])
+                    for a in ambientes)):
+        return punto(False, T("verifica.07.json"), T("verifica.07.no_es_coleccion"))
+    activos = [{v["key"]: v.get("value", "") for v in a["values"] if v.get("enabled", True) is not False}
+               for a in ambientes]
+    faltan = [f"{nombre}: {k}" for nombre, act in zip(AMBIENTES_08, activos) for k in LLAVES_08 if k not in act]
+    if not punto(not faltan, T("verifica.08.ambientes"), T("verifica.08.ambiente_falta", faltan=", ".join(faltan))):
+        return False
+    a_mano = _a_mano(datos_c, A_MANO_08)
+    if not punto(not a_mano, T("verifica.08.todo_del_ambiente"), "\n".join(f"     · {h}" for h in a_mano[:6])):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    # La tienda del alumno es la de adentro del contenedor: su «localhost:8080» es esta misma URL.
+    local, luis = (_ambiente(a["values"], base=URL) for a in ambientes)
+    try:
+        for ambiente, modo, nombre in ((local, "aprueba", "local"), (local, "tarda", "local"), (luis, "aprueba", "luis")):
+            r = _corrida_08(coleccion, ambiente, None, modo)
+            if r.get("sin_newman"):
+                return punto(False, T("verifica.07.newman"), T("verifica.07.sin_newman"))
+            if r.get("roto"):
+                return punto(False, T("verifica.07.newman"), T("verifica.07.newman_roto", detalle="\n".join(r["salida"])))
+            clave = "verifica.08.limpia_lenta" if modo == "tarda" else "verifica.08.limpia"
+            if not punto(r["total"] > 0 and r["rojas"] == 0, T(clave, ambiente=nombre, n=r["total"]),
+                         T(clave + "_falta", ambiente=nombre, rojas=r["rojas"], n=r["total"], detalle=_detalle(r))):
+                return False
+        for error, modo in (("E5", "aprueba"), ("E4", "tarda")):
+            r = _corrida_08(coleccion, local, error, modo)
+            if not punto(r.get("rojas", 0) >= 1, T(f"verifica.08.con_{error}", rojas=r.get("rojas", 0)),
+                         T(f"verifica.08.con_{error}_falta")):
+                return False
+        return True
+    finally:
+        _reiniciar()                     # la pasarela vuelve a «aprueba»
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+# ---------------------------------------------------------------- 09: al mismo tiempo y a deshoras
+
+SCRIPT_09 = "al-mismo-tiempo.sh"
+COLECCION_09 = "deshoras.postman_collection.json"
+AMBIENTE_09 = "local.postman_environment.json"
+FECHA_A_MANO = re.compile(r"20\d{2}-\d{2}")   # la misma búsqueda que la lección: grep -nE '20[0-9]{2}-[0-9]{2}'
+TOPE_SCRIPT_09 = 90                             # segundos para el script del alumno
+
+
+def _reloj(cuando: str | None) -> None:
+    peticion = urllib.request.Request(URL + "/control/reloj", method="PUT", data=json.dumps({"ahora": cuando}).encode(),
+                                      headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(peticion, timeout=10).read()
+
+
+def _horas_09() -> list:
+    """Las tres horas de la lección, en el año de hoy: una normal, el último día de noviembre y el de diciembre."""
+    anio = time.localtime().tm_year
+    return [("normal", f"{anio}-06-15T12:00:00"), ("30-nov", f"{anio}-11-30T23:30:00"),
+            ("31-dic", f"{anio}-12-31T23:30:00")]
+
+
+def _script_09(script: Path, e2: bool) -> tuple:
+    """Corre el script del alumno desde la tienda recién abierta, con E2 encendido o apagado: (código, últimas líneas)."""
+    _reiniciar()
+    cambiar_error("E2", e2)
+    try:
+        r = subprocess.run(["bash", str(script)], cwd=str(script.parent), capture_output=True, text=True,
+                           timeout=TOPE_SCRIPT_09)
+        return r.returncode, "\n".join(f"     · {x}" for x in (r.stdout + r.stderr).strip().splitlines()[-6:])
+    except subprocess.TimeoutExpired:
+        return None, ""
+    finally:
+        cambiar_error("E2", False)
+
+
+def leccion_09() -> bool:
+    script, coleccion = PRACTICA / SCRIPT_09, PRACTICA / COLECCION_09
+    hay = [punto((PRACTICA / a).is_file(), T("verifica.archivo", archivo=a), T("verifica.archivo_falta", archivo=a))
+           for a in (SCRIPT_09, COLECCION_09, AMBIENTE_09)]
+    if not all(hay):
+        return False
+    try:
+        texto_c = coleccion.read_text(encoding="utf-8-sig")
+        datos_c, ambiente = json.loads(texto_c), _leer_json(PRACTICA / AMBIENTE_09)
+    except (OSError, ValueError):
+        return punto(False, T("verifica.07.json"), T("verifica.07.json_falta"))
+    if not (isinstance(datos_c, dict) and isinstance(datos_c.get("item"), list) and isinstance(ambiente, dict)
+            and isinstance(ambiente.get("values"), list)
+            and all(isinstance(v, dict) and isinstance(v.get("key"), str) for v in ambiente["values"])):
+        return punto(False, T("verifica.07.json"), T("verifica.07.no_es_coleccion"))
+    fechas = sorted(set(FECHA_A_MANO.findall(texto_c)))
+    if not punto(not fechas, T("verifica.09.sin_fechas"), T("verifica.09.sin_fechas_falta", fechas=", ".join(fechas[:5]))):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    local = _ambiente(ambiente["values"], base=URL)
+    try:
+        rc, salida = _script_09(script, False)
+        if not punto(rc == 0, T("verifica.09.script_limpia"),
+                     T("verifica.09.script_tope", tope=TOPE_SCRIPT_09) if rc is None
+                     else T("verifica.09.script_limpia_falta", codigo=rc, detalle=salida)):
+            return False
+        rc, salida = _script_09(script, True)
+        falta = (T("verifica.09.script_tope", tope=TOPE_SCRIPT_09) if rc is None
+                 else T("verifica.09.script_no_a_la_vez") if rc == 0
+                 else T("verifica.09.script_e2_falta", codigo=rc, detalle=salida))
+        if not punto(rc == 1, T("verifica.09.script_e2"), falta):
+            return False
+        rojas_e6 = 0
+        for e6 in (False, True):
+            for nombre, hora in _horas_09():
+                _reiniciar()
+                cambiar_error("E6", e6)
+                _reloj(hora)
+                try:
+                    r = _newman(coleccion, local)
+                finally:
+                    cambiar_error("E6", False)
+                if r.get("sin_newman"):
+                    return punto(False, T("verifica.07.newman"), T("verifica.07.sin_newman"))
+                if r.get("roto"):
+                    return punto(False, T("verifica.07.newman"),
+                                 T("verifica.07.newman_roto", detalle="\n".join(r["salida"])))
+                if e6:
+                    rojas_e6 += r["rojas"]
+                elif not punto(r["total"] > 0 and r["rojas"] == 0, T("verifica.09.limpia", hora=hora, n=r["total"]),
+                               T("verifica.09.limpia_falta", hora=hora, rojas=r["rojas"], n=r["total"],
+                                 detalle=_detalle(r))):
+                    return False
+        return punto(rojas_e6 >= 1, T("verifica.09.con_E6", rojas=rojas_e6), T("verifica.09.con_E6_falta"))
+    finally:
+        _reiniciar()                     # el reloj vuelve a la hora real y la pasarela a «aprueba»
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+# ---------------------------------------------------------------- 10: la pasarela que tarda, falla o no contesta
+
+COLECCION_10 = "pasarela.postman_collection.json"
+AMBIENTE_10 = "local.postman_environment.json"
+TARDA_10 = float(os.environ.get("VERIFICA_10_TARDA", "7"))   # más que los 5 s que la tienda espera a la pasarela
+
+
+def _modo_10(modo: str, segundos: float = 0) -> str:
+    return T("tienda.modo.tarda", segundos=f"{segundos:g}") if modo == "tarda" else T(f"tienda.modo.{modo}")
+
+
+def leccion_10() -> bool:
+    coleccion = PRACTICA / COLECCION_10
+    hay = [punto((PRACTICA / a).is_file(), T("verifica.archivo", archivo=a), T("verifica.archivo_falta", archivo=a))
+           for a in (COLECCION_10, AMBIENTE_10)]
+    if not all(hay):
+        return False
+    try:
+        datos_c, ambiente = _leer_json(coleccion), _leer_json(PRACTICA / AMBIENTE_10)
+    except (OSError, ValueError):
+        return punto(False, T("verifica.07.json"), T("verifica.07.json_falta"))
+    if not (isinstance(datos_c, dict) and isinstance(datos_c.get("item"), list) and isinstance(ambiente, dict)
+            and isinstance(ambiente.get("values"), list)
+            and all(isinstance(v, dict) and isinstance(v.get("key"), str) for v in ambiente["values"])):
+        return punto(False, T("verifica.07.json"), T("verifica.07.no_es_coleccion"))
+    activas = {v["key"] for v in ambiente["values"] if v.get("enabled", True) is not False}
+    faltan = [k for k in ("base", "cliente", "contrasena") if k not in activas]
+    if not punto(not faltan, T("verifica.07.ambiente"), T("verifica.07.ambiente_falta", faltan=", ".join(faltan))):
+        return False
+    a_mano = _a_mano(datos_c, A_MANO)              # en la L10 solo está Marta: lo mismo que revisa el 07
+    if not punto(not a_mano, T("verifica.07.todo_del_ambiente"), "\n".join(f"     · {h}" for h in a_mano[:6])):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    local = _ambiente(ambiente["values"], base=URL)
+
+    def corrida(modo: str, segundos: float, error: str | None) -> dict:
+        _reiniciar()                     # el reinicio deja la pasarela en «aprueba»: el modo va después
+        _pasarela(modo, segundos)
+        if error:
+            cambiar_error(error, True)
+        try:
+            return _newman(coleccion, local)
+        finally:
+            if error:
+                cambiar_error(error, False)
+
+    try:
+        for modo, segundos in (("aprueba", 0), ("rechaza", 0), ("no contesta", 0), ("tarda", TARDA_10)):
+            r = corrida(modo, segundos, None)
+            if r.get("sin_newman"):
+                return punto(False, T("verifica.07.newman"), T("verifica.07.sin_newman"))
+            if r.get("roto"):
+                return punto(False, T("verifica.07.newman"), T("verifica.07.newman_roto", detalle="\n".join(r["salida"])))
+            nombre = _modo_10(modo, segundos)
+            if not punto(r["total"] > 0 and r["rojas"] == 0, T("verifica.10.limpia", modo=nombre, n=r["total"]),
+                         T("verifica.10.limpia_falta", modo=nombre, rojas=r["rojas"], n=r["total"], detalle=_detalle(r))):
+                return False
+        r = corrida("tarda", TARDA_10, "E7")
+        return punto(r.get("rojas", 0) >= 1, T("verifica.10.con_E7", rojas=r.get("rojas", 0)),
+                     T("verifica.10.con_E7_falta"))
+    finally:
+        _reiniciar()                     # la pasarela vuelve a «aprueba» y el reinicio suelta lo que esperaba
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+# ---------------------------------------------------------------- 11: el navegador, solo para lo crítico
+
+SCRIPT_11 = "compra.py"
+TOPE_11 = int(os.environ.get("VERIFICA_11_TOPE", "120"))   # segundos para el compra.py del alumno
+CLIENTA_11, CONTRASENA_11 = "Marta", "marta-practica"
+
+
+def _cadenas_que_usa(fuente: str) -> str:
+    """Las cadenas que el compra.py USA como valor, una por renglón. No cuentan los comentarios, los docstrings ni
+    lo que solo imprime (print): ahí «Marta» no es escribirla a mano. Sí cuenta todo lo demás, también
+    CLIENTE = "Marta" u os.environ.get("CLIENTE", "Marta"): eso es la clienta escrita en el código."""
+    import ast
+    try:
+        arbol = ast.parse(fuente)
+    except SyntaxError:
+        return fuente                      # que no se pueda leer no lo hace pasar: se revisa el texto entero
+    fuera = set()
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and nodo.body:
+            primero = nodo.body[0]
+            if isinstance(primero, ast.Expr) and isinstance(primero.value, ast.Constant) \
+                    and isinstance(primero.value.value, str):
+                fuera.add(id(primero.value))
+        if isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name) and nodo.func.id == "print":
+            for arg in [*nodo.args, *(k.value for k in nodo.keywords)]:
+                fuera.update(id(n) for n in ast.walk(arg))
+    return "\n".join(n.value for n in ast.walk(arbol)
+                     if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in fuera)
+
+
+def _pagados_11() -> int:
+    """Cuántos pedidos pagados tiene la clienta, preguntándole a la API como ella."""
+    def llamar(metodo, ruta, cuerpo=None, token=None):
+        h = {"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {})}
+        r = urllib.request.Request(URL + ruta, method=metodo, headers=h,
+                                   data=json.dumps(cuerpo).encode() if cuerpo is not None else None)
+        with urllib.request.urlopen(r, timeout=10) as x:
+            return json.loads(x.read())
+    token = llamar("POST", "/api/sesiones", {"cliente": CLIENTA_11, "contrasena": CONTRASENA_11})["token"]
+    return sum(1 for p in llamar("GET", "/api/pedidos", token=token) if p["estado"] in POSTERIORES_AL_PAGO)
+
+
+def _correr_11(script: Path) -> tuple:
+    """Corre el compra.py del alumno contra la tienda recién abierta: (código o None si no terminó, últimas líneas)."""
+    ambiente = {**os.environ, "TIENDA_URL": URL, "CLIENTE": CLIENTA_11, "CONTRASENA": CONTRASENA_11}
+    try:
+        r = subprocess.run([sys.executable, str(script)], cwd=str(script.parent), env=ambiente,
+                           capture_output=True, text=True, timeout=TOPE_11)
+        return r.returncode, "\n".join(f"     · {x}" for x in (r.stdout + r.stderr).strip().splitlines()[-6:])
+    except subprocess.TimeoutExpired:
+        return None, ""
+
+
+def leccion_11() -> bool:
+    script = PRACTICA / SCRIPT_11
+    if not punto(script.is_file(), T("verifica.archivo", archivo=SCRIPT_11), T("verifica.archivo_falta", archivo=SCRIPT_11)):
+        return False
+    try:
+        fuente = _cadenas_que_usa(script.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError):
+        fuente = ""
+    a_mano = [que for patron, que in A_MANO if patron.search(fuente)]
+    if not punto(not a_mano, T("verifica.11.a_mano"), T("verifica.11.a_mano_falta", que=", ".join(a_mano))):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    try:
+        _reiniciar()
+        rc, salida = _correr_11(script)
+        if rc is None:
+            return punto(False, T("verifica.11.limpia"), T("verifica.11.tope", tope=TOPE_11))
+        pagados = _pagados_11()
+        if not punto(rc == 0 and pagados >= 1, T("verifica.11.limpia"),
+                     T("verifica.11.limpia_falta", rc=rc, salida=salida) if rc != 0 else T("verifica.11.sin_pedido")):
+            return False
+        _reiniciar()
+        cambiar_error("E8", True)
+        rc, salida = _correr_11(script)
+        cambiar_error("E8", False)
+        if rc is None:
+            return punto(False, T("verifica.11.con_E8_falta"), T("verifica.11.tope", tope=TOPE_11))
+        return punto(rc != 0, T("verifica.11.con_E8", rc=rc) if rc != 0 else T("verifica.11.con_E8_no"),
+                     T("verifica.11.con_E8_falta"))
+    finally:
+        _reiniciar()
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+REPORTE_12 = "reporte.md"
+TOPE_12 = int(os.environ.get("VERIFICA_12_TOPE", "60"))   # segundos para los pasos del reporte
+# Las cuatro secciones del reporte, en el idioma que el alumno haya escrito (cualquiera de los cinco del curso).
+SECCIONES_12 = (("Pasos", "Steps", "Étapes", "Passos", "Стъпки"),
+                ("Resultado esperado", "Expected result", "Résultat attendu", "Resultado esperado", "Очакван резултат"),
+                ("Resultado obtenido", "Actual result", "Résultat obtenu", "Resultado obtido", "Действителен резултат"),
+                ("Evidencia", "Evidence", "Preuves", "Evidência", "Доказателства"))
+CLIENTES_12 = (("Marta", "marta-practica"), ("Luis", "luis-practica"))
+PROVOCA_12 = [(re.compile(r"\btienda\s+error\b", re.I), "tienda error"), (re.compile(r"/control/"), "/control/")]
+SALIO_12 = ("enviado", "entregado")
+
+
+def _encabezado_12(nombres) -> re.Pattern:
+    """Un «## Sección» sin importar mayúsculas ni espacios de más, en cualquiera de los cinco idiomas."""
+    return re.compile(r"^[ ]{0,3}\#\#[ \t]+(?:" + "|".join(r"[ \t]+".join(map(re.escape, n.split())) for n in nombres)
+                      + r")[ \t]*(?:\#+[ \t]*)?:?[ \t]*$", re.M | re.I)
+
+
+_VALLA_12 = re.compile(r"^([ \t]*)(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$")
+
+
+def _lineas_12(md: str):
+    """Cada renglón del reporte con dos datos: si cae DENTRO de un bloque de código (entre vallas ``` o ~~~, con o
+    sin sangría, como en CommonMark) y, si es una valla de apertura, su lenguaje. Un «## algo» dentro de un bloque
+    es un comentario de bash, no un encabezado."""
+    abierta = None                      # (carácter, largo) de la valla abierta
+    for renglon in md.split("\n"):
+        valla = _VALLA_12.match(renglon)
+        if abierta is None and valla:
+            abierta = (valla.group(2)[0], len(valla.group(2)))
+            yield renglon, False, valla.group(3).lower(), valla.group(1)
+        elif abierta and valla and valla.group(2)[0] == abierta[0] and len(valla.group(2)) >= abierta[1] \
+                and not valla.group(3):
+            abierta = None
+            yield renglon, False, "/fin", ""
+        else:
+            yield renglon, abierta is not None, None, None
+
+
+def _encabezados_12(md: str, nombres) -> int:
+    """Cuántas veces aparece la sección, contando solo encabezados fuera de los bloques de código."""
+    patron = _encabezado_12(nombres)
+    return sum(1 for r, dentro, _, _ in _lineas_12(md) if not dentro and patron.fullmatch(r))
+
+
+def _pasos_12(md: str):
+    """Los bloques bash de la sección «Pasos» (hasta el siguiente ## fuera de un bloque, o el final). La sangría de
+    la valla se le quita a su contenido, para que un bloque dentro de una lista corra igual."""
+    patron, en_pasos, bloques, actual, sangria = _encabezado_12(SECCIONES_12[0]), False, [], None, ""
+    for renglon, dentro, lenguaje, sangria_valla in _lineas_12(md):
+        if not dentro and lenguaje is None:
+            if re.match(r"^[ ]{0,3}\#\#[ \t]", renglon):
+                en_pasos = bool(patron.fullmatch(renglon))
+            continue
+        if not en_pasos:
+            continue
+        if lenguaje == "/fin":
+            if actual is not None:
+                bloques.append("".join(actual))
+            actual = None
+        elif lenguaje is not None:
+            actual, sangria = ([] if lenguaje == "bash" else None), sangria_valla
+        elif actual is not None:
+            actual.append((renglon[len(sangria):] if renglon.startswith(sangria) else renglon.lstrip()) + "\n")
+    return bloques
+
+
+def _sin_comentarios_12(bloque: str) -> str:
+    """El bloque sin sus comentarios, como los entiende bash: un # abre comentario solo al inicio de una palabra y
+    fuera de comillas («a#b» y «$#» no son comentarios; un # dentro de un texto entre comillas, aunque cruce
+    renglones, tampoco)."""
+    salida, comilla, i = [], None, 0
+    while i < len(bloque):
+        c = bloque[i]
+        if comilla == "'":
+            comilla = None if c == "'" else comilla
+        elif c == "\\":
+            salida.append(bloque[i:i + 2])
+            i += 2
+            continue
+        elif comilla == '"':
+            comilla = None if c == '"' else comilla
+        elif c in "'\"":
+            comilla = c
+        elif c == "#" and (i == 0 or bloque[i - 1] in " \t\n;&|()"):
+            while i < len(bloque) and bloque[i] != "\n":
+                i += 1
+            continue
+        salida.append(c)
+        i += 1
+    return "".join(salida)
+
+
+def _provoca_12(bloque: str) -> list:
+    """Qué de lo prohibido (prender errores, tocar /control/) trae el bloque, sin contar los comentarios de bash:
+    «# no uso tienda error» no prende nada. Lo que va entre comillas sí cuenta (se queda del lado seguro)."""
+    limpio = _sin_comentarios_12(bloque)
+    return [que for patron, que in PROVOCA_12 if patron.search(limpio)]
+
+
+def _api_12(metodo, ruta, cuerpo=None, token=None, llave=None):
+    h = {"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {}),
+         **({"Idempotency-Key": llave} if llave else {})}
+    r = urllib.request.Request(URL + ruta, method=metodo, headers=h,
+                               data=json.dumps(cuerpo).encode() if cuerpo is not None else None)
+    with urllib.request.urlopen(r, timeout=10) as x:
+        return json.loads(x.read() or b"null")
+
+
+def _previo_12() -> None:
+    """El pedido que ya tiene cualquier tienda usada: uno de Marta, pagado y cancelado. Así, unos pasos con el número
+    de pedido escrito a mano mueven ESTE pedido y no el suyo, igual que en la tienda de quien recibe el reporte."""
+    token = _api_12("POST", "/api/sesiones", {"cliente": "Marta", "contrasena": "marta-practica"})["token"]
+    _api_12("PUT", "/api/carrito/productos/calcetines", {"cantidad": 1}, token)
+    pedido = _api_12("POST", "/api/pedidos", token=token)["id"]
+    _api_12("POST", f"/api/pedidos/{pedido}/pago", {"tarjeta": "4242 4242 4242 4242"}, token, llave="previo")
+    _api_12("POST", f"/api/pedidos/{pedido}/cancelacion", token=token)
+
+
+def _historiales_12() -> list:
+    """Los estados por los que pasó cada pedido de la tienda, en orden, preguntándole a la API como cada cliente."""
+    todos = []
+    for cliente, contrasena in CLIENTES_12:
+        token = _api_12("POST", "/api/sesiones", {"cliente": cliente, "contrasena": contrasena})["token"]
+        for p in _api_12("GET", "/api/pedidos", token=token):
+            todos.append([h["estado"] for h in _api_12("GET", f"/api/pedidos/{p['id']}", token=token)["historial"]])
+    return todos
+
+
+def _salio_y_se_cancelo(h: list) -> bool:
+    return "cancelado" in h and any(e in SALIO_12 for e in h[:h.index("cancelado")])
+
+
+def _correr_12(bloque: str) -> bool:
+    """Corre los pasos con bash, con la salida guardada y un tope. False si no terminaron a tiempo. En la imagen la
+    tienda es localhost:8080; solo en las pruebas del repo, que la levantan en otro puerto, se cambia la dirección."""
+    from urllib.parse import urlparse
+    donde = urlparse(URL).netloc
+    if donde not in ("127.0.0.1:8080", "localhost:8080"):
+        bloque = bloque.replace("localhost:8080", donde)
+    ambiente = {**os.environ, "TIENDA_URL": URL,
+                "PATH": f"{Path(__file__).resolve().parent}{os.pathsep}{os.environ.get('PATH', '')}"}
+    # Grupo de procesos propio, para matar a bash Y a todo lo que lanzó (un sleep, un curl colgado, un `&`).
+    proceso = subprocess.Popen(["bash", "-c", bloque], cwd=str(PRACTICA), env=ambiente, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    import signal
+    try:
+        proceso.wait(timeout=TOPE_12)
+        return True
+    except subprocess.TimeoutExpired:
+        return False
+    finally:
+        # Terminen a tiempo o no, lo que los pasos dejaron corriendo atrás (un `&`) muere aquí: si no, podría mover
+        # la tienda o prender un error DESPUÉS de que el verifica la restauró.
+        try:
+            os.killpg(proceso.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proceso.wait()
+
+
+def leccion_12() -> bool:
+    reporte = PRACTICA / REPORTE_12
+    if not punto(reporte.is_file(), T("verifica.archivo", archivo=REPORTE_12),
+                 T("verifica.archivo_falta", archivo=REPORTE_12)):
+        return False
+    try:
+        md = reporte.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    except (OSError, UnicodeDecodeError):
+        md = ""
+    veces = [_encabezados_12(md, nombres) for nombres in SECCIONES_12]
+    faltan = [T(f"verifica.12.seccion_{i}") for i, n in enumerate(veces) if n == 0]
+    repetidas = [T(f"verifica.12.seccion_{i}") for i, n in enumerate(veces) if n > 1]
+    falta = T("verifica.12.secciones_falta", faltan=", ".join(faltan)) if faltan else \
+        T("verifica.12.una_vez_falta", repetidas=", ".join(repetidas))
+    if not punto(not faltan and not repetidas, T("verifica.12.secciones"), falta):
+        return False
+    bloques = _pasos_12(md)
+    if not punto(len(bloques) == 1, T("verifica.12.un_bloque"), T("verifica.12.un_bloque_falta", n=len(bloques))):
+        return False
+    provoca = _provoca_12(bloques[0])
+    if not punto(not provoca, T("verifica.12.no_provoca"), T("verifica.12.no_provoca_falta", que=", ".join(provoca))):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    try:
+        _reiniciar()
+        _previo_12()
+        if not _correr_12(bloques[0]):
+            return punto(False, T("verifica.12.limpia"), T("verifica.12.tope", tope=TOPE_12))
+        limpia = _historiales_12()
+        if not punto(any(set(h) & set(SALIO_12) for h in limpia) and not any(map(_salio_y_se_cancelo, limpia)),
+                     T("verifica.12.limpia"), T("verifica.12.limpia_falta")):
+            return False
+        _reiniciar()
+        cambiar_error("E3", True)
+        _previo_12()
+        termino = _correr_12(bloques[0])
+        primera = sum(map(_salio_y_se_cancelo, _historiales_12()))
+        # Otra vez, SIN reiniciar (la regla de la lección: córrelo dos veces): la segunda tiene que reproducirlo en un
+        # pedido NUEVO. Unos pasos con el número de pedido escrito a mano solo sirven en una tienda recién preparada.
+        segunda_termino = termino and _correr_12(bloques[0])
+        segunda = sum(map(_salio_y_se_cancelo, _historiales_12()))
+        cambiar_error("E3", False)
+        if not termino:
+            return punto(False, T("verifica.12.con_E3"), T("verifica.12.tope", tope=TOPE_12))
+        if not punto(primera >= 1, T("verifica.12.con_E3"), T("verifica.12.con_E3_falta")):
+            return False
+        if not segunda_termino:
+            return punto(False, T("verifica.12.dos_veces"), T("verifica.12.tope", tope=TOPE_12))
+        return punto(segunda > primera, T("verifica.12.dos_veces"), T("verifica.12.dos_veces_falta"))
+    finally:
+        _reiniciar()
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+# ---------------------------------------------------------------- 13: ¿tu prueba sirve? (siembra de errores)
+
+SIEMBRA_13, BENDICE_13, HEREDADAS_13 = "siembra.md", "bendice.txt", "heredadas.sh"
+AMBIENTE_13 = "local.postman_environment.json"      # el de la lección 08, con otra_cliente y otra_contrasena
+ERRORES_13 = tuple(f"E{n}" for n in range(1, 9))
+MINIMO_13 = (("E1", "07"), ("E5", "08"))            # lo que cada colección atrapaba en su propia lección
+BENDICE_ES_13 = "4"
+CUARTA_13 = "$0.00"                                 # envío de tres playeras ($999.00): gratis desde $999.00
+TOPE_13 = int(os.environ.get("VERIFICA_13_TOPE", "60"))   # segundos para el heredadas.sh del alumno
+# «sí» y «no» en los cinco idiomas del curso, sin importar mayúsculas ni espacios.
+SI_13 = {"sí", "si", "yes", "oui", "sim", "да"}
+NO_13 = {"no", "non", "não", "nao", "не"}
+CUAL_13 = {"07": re.compile(r"(?<!\d)0?7(?!\d)"), "08": re.compile(r"(?<!\d)0?8(?!\d)")}
+VACIA_13 = {"", "-", "—", "–"}
+
+
+def _siembra_13(texto: str):
+    """{error: (sí/no, {colecciones})} y el problema de forma, si lo hay (una sola frase para el alumno)."""
+    filas = _tabla(texto)
+    if not filas:
+        return None, T("verifica.13.siembra_sin_tabla")
+    vistas, repetidas, sin_si_no, tabla = [], [], [], {}
+    for fila in filas:
+        error = fila[0].strip().upper() if fila else ""
+        if error not in ERRORES_13:
+            continue
+        if error in vistas:
+            repetidas.append(error)
+            continue
+        vistas.append(error)
+        dice = (fila[1] if len(fila) > 1 else "").strip().lower()
+        cual = (fila[2] if len(fila) > 2 else "").strip()
+        if dice not in SI_13 | NO_13:
+            sin_si_no.append(error)
+            continue
+        tabla[error] = (dice in SI_13, {c for c, patron in CUAL_13.items() if patron.search(cual)},
+                        cual in VACIA_13, f"{fila[1].strip()} {cual}".strip())
+    faltan = [e for e in ERRORES_13 if e not in vistas]
+    if faltan:
+        return None, T("verifica.13.siembra_faltan", errores=", ".join(faltan))
+    if repetidas:
+        return None, T("verifica.13.siembra_repetidas", errores=", ".join(repetidas))
+    if sin_si_no:
+        return None, T("verifica.13.siembra_sin_si_no", errores=", ".join(sin_si_no))
+    return tabla, ""
+
+
+def _cuarta_13(script: str):
+    """El esperado de la 4.ª llamada a «revisa» (por posición: los nombres cambian con el idioma), o su cuenta."""
+    llamadas = []
+    # Una línea que sigue con «\» al final es la misma línea para bash.
+    for renglon in re.sub(r"\\\n", " ", script).splitlines():
+        # La definición de la función (con o sin espacio antes de los paréntesis) no es una prueba.
+        if re.match(r"^\s*revisa\s", renglon) and not re.match(r"^\s*revisa\s*\(\s*\)", renglon):
+            try:
+                partes = shlex.split(renglon, comments=True)
+            except ValueError:
+                partes = []
+            esperado = partes[2] if len(partes) > 2 else ""
+            # Entre comillas dobles, bash quita la barra de \$, \`, \" y \\; shlex la deja.
+            llamadas.append(re.sub(r'\\([$`"\\])', r"\1", esperado))
+    # Cinco exactas: la que bendecía se corrige, no se borra (borrarla corre la quinta al cuarto lugar).
+    return (llamadas[3], 5) if len(llamadas) == 5 else (None, len(llamadas))
+
+
+def _heredadas_13(script: Path) -> tuple:
+    """Corre el heredadas.sh del alumno como Marta, con la dirección de la tienda por el ambiente."""
+    entorno = {**os.environ, "TIENDA_URL": URL, "CLIENTE": CLIENTA_11, "CONTRASENA": CONTRASENA_11}
+    try:
+        r = subprocess.run(["bash", str(script)], cwd=PRACTICA, capture_output=True, text=True, timeout=TOPE_13,
+                           env=entorno)
+    except subprocess.TimeoutExpired:
+        return None, 0, [T("verifica.13.heredadas_tarda", s=TOPE_13)]
+    renglones = (r.stdout + r.stderr).strip().splitlines()
+    verdes = sum(1 for l in renglones if l.lstrip().startswith("✅"))
+    rojos = sum(1 for l in renglones if l.lstrip().startswith("❌"))
+    return r.returncode, (verdes if rojos == 0 else -verdes), renglones[-8:]
+
+
+def leccion_13() -> bool:
+    archivos = (COLECCION_07, COLECCION_08, AMBIENTE_13, SIEMBRA_13, BENDICE_13, HEREDADAS_13)
+    hay = [punto((PRACTICA / a).is_file(), T("verifica.archivo", archivo=a), T("verifica.archivo_falta", archivo=a))
+           for a in archivos]
+    if not all(hay):
+        return False
+    try:
+        colecciones = {"07": _leer_json(PRACTICA / COLECCION_07), "08": _leer_json(PRACTICA / COLECCION_08)}
+        ambiente = _leer_json(PRACTICA / AMBIENTE_13)
+    except (OSError, ValueError):
+        return punto(False, T("verifica.07.json"), T("verifica.07.json_falta"))
+    if not (all(isinstance(c, dict) and isinstance(c.get("item"), list) for c in colecciones.values())
+            and isinstance(ambiente, dict) and isinstance(ambiente.get("values"), list)
+            and all(isinstance(v, dict) and isinstance(v.get("key"), str) for v in ambiente["values"])):
+        return punto(False, T("verifica.07.json"), T("verifica.07.no_es_coleccion"))
+    activos = {v["key"] for v in ambiente["values"] if v.get("enabled", True) is not False}
+    faltan = [k for k in LLAVES_08 if k not in activos]
+    if not punto(not faltan, T("verifica.13.ambiente"), T("verifica.13.ambiente_falta", faltan=", ".join(faltan))):
+        return False
+    tabla, problema = _siembra_13((PRACTICA / SIEMBRA_13).read_text(encoding="utf-8-sig", errors="replace"))
+    if not punto(tabla is not None, T("verifica.13.siembra"), T("verifica.13.siembra_falta", problema=problema)):
+        return False
+    dice = (PRACTICA / BENDICE_13).read_text(encoding="utf-8-sig", errors="replace").strip()
+    if not punto(dice == BENDICE_ES_13, T("verifica.13.bendice"), T("verifica.13.bendice_falta", dice=dice)):
+        return False
+    espera, cuantas = _cuarta_13((PRACTICA / HEREDADAS_13).read_text(encoding="utf-8-sig", errors="replace"))
+    if espera is None:
+        return punto(False, T("verifica.13.cuarta"), T("verifica.13.cuarta_no_esta", n=cuantas))
+    if not punto(espera == CUARTA_13, T("verifica.13.cuarta"), T("verifica.13.cuarta_falta", espera=espera)):
+        return False
+    codigo, antes = pedir("/control/errores")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    for e in antes:
+        if antes[e]:
+            cambiar_error(e, False)
+    # La tienda del alumno es la de adentro del contenedor: su «localhost:8080» es esta misma URL.
+    propio = _ambiente(ambiente["values"], base=URL)
+    rutas = {"07": PRACTICA / COLECCION_07, "08": PRACTICA / COLECCION_08}
+    try:
+        # Primero sin ningún error: un rojo en la siembra solo significa algo si la colección sale verde limpia.
+        for cual in ("07", "08"):
+            _reiniciar()
+            r = _newman(rutas[cual], propio)
+            if r.get("sin_newman"):
+                return punto(False, T("verifica.07.newman"), T("verifica.07.sin_newman"))
+            if r.get("roto"):
+                return punto(False, T("verifica.07.newman"), T("verifica.07.newman_roto", detalle="\n".join(r["salida"])))
+            if not punto(r["total"] > 0 and r["rojas"] == 0, T("verifica.13.limpia", coleccion=cual, n=r["total"]),
+                         T("verifica.13.limpia_falta", coleccion=cual, rojas=r["rojas"], n=r["total"],
+                           detalle=_detalle(r))):
+                return False
+        # La siembra: cada error solo, las dos colecciones, desde la tienda recién abierta, como el siembra.sh.
+        rojas = {}
+        for error in ERRORES_13:
+            cambiar_error(error, True)
+            try:
+                rojas[error] = set()
+                for cual in ("07", "08"):
+                    _reiniciar()
+                    r = _newman(rutas[cual], propio)
+                    if r.get("roto") or r.get("rojas", 0) > 0:
+                        rojas[error].add(cual)
+            finally:
+                cambiar_error(error, False)
+        distintas = []
+        for error in ERRORES_13:
+            si, cuales, vacia, texto = tabla[error]
+            paso = rojas[error]
+            if si != bool(paso) or (si and cuales != paso) or (not si and not vacia):
+                que = T("verifica.13.roja_en", cuales=", ".join(sorted(paso))) if paso else T("verifica.13.ninguna")
+                distintas.append(T("verifica.13.tabla_fila", error=error, dice=texto, paso=que))
+        if not punto(not distintas, T("verifica.13.tabla"), T("verifica.13.tabla_falta", detalle="\n".join(distintas))):
+            return False
+        perdidos = [(e, c) for e, c in MINIMO_13 if c not in rojas[e]]
+        if not punto(not perdidos, T("verifica.13.minimo"),
+                     "\n".join(T(f"verifica.13.minimo_{c}_falta") for _, c in perdidos)):
+            return False
+        script = PRACTICA / HEREDADAS_13
+        _reiniciar()
+        codigo, verdes, ultimo = _heredadas_13(script)
+        if not punto(codigo == 0 and verdes == 5, T("verifica.13.heredadas_limpia"),
+                     T("verifica.13.heredadas_limpia_falta", codigo=codigo, verdes=abs(verdes),
+                       detalle="\n".join(f"     {l}" for l in ultimo))):
+            return False
+        _reiniciar()
+        cambiar_error("E1", True)
+        try:
+            codigo, _, _ = _heredadas_13(script)
+        finally:
+            cambiar_error("E1", False)
+        return punto(codigo not in (0, None), T("verifica.13.heredadas_e1"), T("verifica.13.heredadas_e1_falta"))
+    finally:
+        _reiniciar()
+        for e in antes:
+            cambiar_error(e, antes[e])
+
+
+LECCIONES = {
+    "00": leccion_00,
+    "01": lambda: escenarios("cupon.feature", None),
+    "02": lambda: escenarios("envio.feature", "E1"),
+    "03": lambda: escenarios("promocion.feature", "E1"),
+    "04": lambda: escenarios("pedidos.feature", "E3"),
+    "05": lambda: pares() and escenarios("pares.feature", "E1", tambien="pares*.feature"),
+    "06": leccion_06,
+    "07": leccion_07,
+    "08": leccion_08,
+    "09": leccion_09,
+    "10": leccion_10,
+    "11": leccion_11,
+    "12": leccion_12,
+    "13": leccion_13,
+}
+
+
+def main(args) -> int:
+    if len(args) != 1:
+        print(T("verifica.uso"))
+        return 2
+    leccion = args[0].zfill(2)
+    revisar = LECCIONES.get(leccion)
+    if revisar is None:
+        disponibles = ", ".join(sorted(LECCIONES))
+        print(T("verifica.sin_verifica", leccion=leccion, disponibles=disponibles))
+        return 2
+    print(T("verifica.revisando", leccion=leccion) + "\n")
+    ok = revisar()
+    print("\n" + (T("verifica.completa") if ok else T("verifica.falta", leccion=leccion)))
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

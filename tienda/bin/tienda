@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""tienda — maneja la tienda de práctica desde adentro del contenedor.
+
+  tienda error estado              qué errores sembrados están encendidos
+  tienda error E1 on|off           enciende o apaga uno (E1, E2, E3, E4, E5, E6, E7 o E8)
+  tienda reiniciar                 deja la tienda como recién abierta (los errores se quedan como estaban)
+  tienda reloj 2026-12-31T23:59:58 fija la hora de la tienda (hora de la Ciudad de México)
+  tienda reloj real                regresa a la hora real
+  tienda pasarela aprueba          la pasarela de pago aprueba (también: rechaza, no-contesta, tarda 8)
+  tienda pedido 3 avanzar          mueve el pedido 3 a su siguiente estado (como el almacén o la paquetería)
+"""
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+URL = os.environ.get("TIENDA_URL", "http://127.0.0.1:8080")
+
+
+def _cargar_textos():
+    """Los textos en los cinco idiomas: en el contenedor, /opt/pasos/textos_tienda; en el repo, junto a la tienda."""
+    try:
+        import textos_tienda
+        return textos_tienda
+    except ImportError:
+        import importlib.util
+        from pathlib import Path
+        ruta = Path(__file__).resolve().parents[1] / "tienda" / "textos" / "__init__.py"
+        spec = importlib.util.spec_from_file_location("textos_tienda", ruta)
+        modulo = importlib.util.module_from_spec(spec)
+        sys.modules["textos_tienda"] = modulo
+        spec.loader.exec_module(modulo)
+        return modulo
+
+
+textos = _cargar_textos()
+IDIOMA = textos.omision()  # TIENDA_IDIOMA, que fija el ./practicar
+
+
+def T(clave, **datos):
+    return textos.t(clave, IDIOMA, **datos)
+
+
+def control(metodo, ruta, cuerpo=None):
+    datos = None if cuerpo is None else json.dumps(cuerpo).encode()
+    peticion = urllib.request.Request(URL + ruta, data=datos, method=metodo,
+                                      headers={"Content-Type": "application/json", "Accept-Language": IDIOMA})
+    try:
+        with urllib.request.urlopen(peticion, timeout=15) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        cuerpo = json.loads(e.read() or b"{}")
+        salir(f"❌ {cuerpo.get('mensaje', T('tienda.contesto', codigo=e.code))}")
+    except urllib.error.URLError:
+        salir(T("tienda.no_contesta"))
+
+
+def salir(texto, codigo=1):
+    print(texto)
+    sys.exit(codigo)
+
+
+def errores(estado):
+    for e, encendido in estado.items():
+        print(f"  {e}  {T('tienda.encendido') if encendido else T('tienda.apagado')}")
+    avisos(estado)
+
+
+def avisos(estado):
+    """Un aviso por cada error encendido: siguen encendidos aunque se reinicie o se apague la tienda."""
+    encendidos = [e for e, encendido in estado.items() if encendido]
+    if encendidos:
+        print()
+    for e in encendidos:
+        print(T("tienda.aviso_encendido", error=e))
+
+
+def main(args):
+    if not args or args[0] in ("-h", "--help", "ayuda"):
+        salir(T("tienda.ayuda"), 0)
+    orden, resto = args[0], args[1:]
+    if orden == "error":
+        if resto == ["avisos"]:
+            avisos(control("GET", "/control/errores"))
+        elif resto in (["estado"], []):
+            errores(control("GET", "/control/errores"))
+        elif len(resto) == 2 and resto[1] in ("on", "off"):
+            errores(control("PUT", f"/control/errores/{resto[0].upper()}", {"encendido": resto[1] == "on"}))
+        else:
+            salir(T("tienda.uso_error"), 2)
+    elif orden == "reiniciar":
+        print(f"✅ {control('POST', '/control/reinicio')['mensaje']}")
+    elif orden == "reloj" and len(resto) == 1:
+        r = control("PUT", "/control/reloj", {"ahora": None if resto[0] == "real" else resto[0]})
+        print(T("tienda.hora", hora=r["hora_de_la_tienda"]))
+    elif orden == "pasarela" and resto:
+        modo = resto[0].replace("-", " ")
+        segundos = float(resto[1]) if modo == "tarda" and len(resto) > 1 else 0
+        if modo == "tarda" and not segundos:
+            salir(T("tienda.uso_tarda"), 2)
+        r = control("PUT", "/control/pasarela", {"modo": modo, "segundos": segundos})
+        print(T("tienda.pasarela_tarda", segundos=f"{r['segundos']:g}") if r["modo"] == "tarda"
+              else T("tienda.pasarela", modo=T(f"tienda.modo.{r['modo']}")))
+    elif orden == "pedido" and len(resto) == 2 and resto[1] == "avanzar":
+        r = control("POST", f"/control/pedidos/{resto[0]}/avance")
+        print(T("tienda.pedido", id=r["id"], estado=T(f"estado.{r['estado']}")))
+    else:
+        salir(T("tienda.no_conozco", orden=" ".join(args)) + "\n\n" + T("tienda.ayuda"), 2)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

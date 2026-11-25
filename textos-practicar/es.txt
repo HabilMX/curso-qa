@@ -1,0 +1,33 @@
+# Mensajes del ./practicar en español. Una línea por mensaje: clave=texto. «%s» es un dato que pone el guion
+# (en el orden en que aparece); «\n» es un salto de línea. Las otras lenguas tienen las mismas claves.
+uso=Uso:\n  ./practicar                  levanta la tienda (la primera vez construye la imagen) y entra a la terminal\n  ./practicar error estado     qué errores sembrados están encendidos\n  ./practicar error E1 on|off  enciende o apaga uno (E1, E2, E3, E4, E5, E6, E7 o E8)\n  ./practicar reiniciar        deja la tienda como recién abierta (sin pedidos)\n  ./practicar apagar           apaga la tienda; tu trabajo y los datos se quedan guardados\n  ./practicar desde-cero       borra tu carpeta de práctica y los datos de la tienda, con confirmación\n  ./practicar reconstruir      actualiza la imagen cuando el curso trae algo nuevo\n  ./practicar reconstruir-limpio   la construye otra vez desde cero (vuelve a descargarlo todo)\n\n  TIENDA_IDIOMA=en ./practicar     la tienda en inglés (es, en, fr, pt o bg)
+no_conozco=No conozco «%s».
+sin_docker=❌ No encuentro el comando «docker» en esta computadora.\n   Instálalo primero: la lección 00, en «Antes de empezar», dice cómo en cada sistema.
+docker_mudo=❌ Docker está instalado, pero no pude hablar con él. Las causas más comunes:
+docker_mac=   • En Mac, Docker corre dentro de un programa que tiene que estar abierto.\n     Ábrelo (Docker Desktop o el que uses), espera a que diga que está corriendo y repite.
+docker_linux=   • El servicio está apagado. Se enciende con:   sudo systemctl start docker\n   • Tu usuario no está en el grupo docker. El comando «groups» debe mostrar «docker».\n   • En Windows con WSL2: Docker Desktop cerrado, o sin la integración con tu distribución.
+docker_otra=   Puede ser otra cosa. Corre   docker info   y sigue el error exacto que te dé.
+construyendo=Construyendo la imagen «%s». La primera vez descarga Python, Node y un navegador sin ventana:\npuede tardar varios minutos. Lo que ya estaba construido se reutiliza.
+no_construyo=❌ No se pudo construir la imagen. Lee el PRIMER error de arriba: puede ser la red,\n   el espacio en disco o los permisos de Docker. Cuando lo arregles, vuelve a correr ./practicar
+imagen_lista=✅ Imagen lista.
+volumen_ajeno=❌ Ya existe un volumen «%s» que no es de este curso. No lo toco: renómbralo o bórralo tú.
+volumen_no_creado=❌ No pude crear el volumen «%s».
+no_arranco=❌ La tienda no arrancó. Lo que dijo al intentarlo:
+contenedor_ajeno=❌ Ya hay un contenedor «%s» que no es de este curso. No lo toco.
+no_encendio=❌ No pude encender la tienda. Prueba  ./practicar reconstruir
+no_levanto=❌ No pude levantar la tienda. Si el error dice «port is already allocated», el puerto %s\n   lo usa otro programa: ciérralo, o usa otro puerto con   TIENDA_PUERTO=8081 ./practicar
+arriba=✅ La tienda está arriba: http://localhost:%s
+no_interactiva=❌ ./practicar abre una terminal interactiva: córrelo directo en tu terminal,\n   sin tuberías (|) ni redirecciones (< >).
+entrando=Entrando a la terminal de la tienda. Para salir, escribe  exit  (o Ctrl+D).
+saliste=Saliste de la terminal. La tienda SIGUE arriba en http://localhost:%s\nPara volver a entrar:  ./practicar   ·   para apagarla:  ./practicar apagar
+apagada=✅ Tienda apagada. Tu trabajo y los pedidos siguen guardados.
+ya_apagada=La tienda ya estaba apagada.
+borra_aviso=Esto BORRA tu carpeta ~/practica de la tienda y todos sus pedidos. No se puede deshacer.\nNo se borra nada más: ni la imagen ni archivos de tu computadora.
+borra_pregunta=Para confirmar, escribe  si  y presiona Enter: 
+borra_palabra=si
+no_se_borro=No se borró nada.
+contenedor_ajeno_no_toque=❌ El contenedor «%s» no es de este curso. No toqué nada.
+volumen_ajeno_no_borro=❌ El volumen «%s» no es de este curso; no lo borro.
+borrado=✅ Borrado: %s
+recien_abierta=La próxima vez que entres con ./practicar, la tienda estará recién abierta y ~/practica vacía.
+imagen_nueva=La próxima vez que entres, la tienda usará la imagen nueva.

@@ -1,0 +1,167 @@
+{
+ "info": {
+  "name": "Pasarela",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "item": [
+  {
+   "name": "La clienta inicia sesión",
+   "request": {
+    "method": "POST",
+    "url": "{{base}}/api/sesiones",
+    "header": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\"cliente\":\"{{cliente}}\",\"contrasena\":\"{{contrasena}}\"}"
+    }
+   },
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "exec": [
+       "pm.test('código 201', () => pm.response.to.have.status(201));",
+       "pm.collectionVariables.set('token', pm.response.json().token);"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Una playera al carrito",
+   "request": {
+    "method": "PUT",
+    "url": "{{base}}/api/carrito/productos/playera-azul",
+    "header": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     },
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token}}"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\"cantidad\":1}"
+    }
+   },
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "exec": [
+       "pm.test('código 200', () => pm.response.to.have.status(200));"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Hace su pedido",
+   "request": {
+    "method": "POST",
+    "url": "{{base}}/api/pedidos",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token}}"
+     }
+    ]
+   },
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "exec": [
+       "pm.test('código 201', () => pm.response.to.have.status(201));",
+       "pm.collectionVariables.set('pedido', pm.response.json().id);"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Paga",
+   "request": {
+    "method": "POST",
+    "url": "{{base}}/api/pedidos/{{pedido}}/pago",
+    "header": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     },
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token}}"
+     },
+     {
+      "key": "Idempotency-Key",
+      "value": "{{llave}}"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\"tarjeta\":\"4242 4242 4242 4242\"}"
+    }
+   },
+   "event": [
+    {
+     "listen": "prerequest",
+     "script": {
+      "exec": [
+       "pm.collectionVariables.set('llave', 'pasarela-' + Date.now());"
+      ]
+     }
+    },
+    {
+     "listen": "test",
+     "script": {
+      "exec": [
+       "pm.test('aprobado, rechazado o sin respuesta', () => pm.expect(pm.response.code).to.be.oneOf([200, 402, 504]));"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Cómo quedó el pedido",
+   "request": {
+    "method": "GET",
+    "url": "{{base}}/api/pedidos/{{pedido}}",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token}}"
+     }
+    ]
+   },
+   "event": [
+    {
+     "listen": "prerequest",
+     "script": {
+      "exec": [
+       "setTimeout(() => {}, 5000);"
+      ]
+     }
+    },
+    {
+     "listen": "test",
+     "script": {
+      "exec": [
+       "const p = pm.response.json();",
+       "pm.test('no se cobró de más', () => pm.expect(p.cobrado.centavos).to.be.at.most(p.total.centavos));",
+       "pm.test('pagado si y solo si se cobró', () => pm.expect(p.estado === 'pagado').to.eql(p.cobrado.centavos === p.total.centavos));"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}
