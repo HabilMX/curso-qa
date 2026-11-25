@@ -1,5 +1,3 @@
-[Español](../es/README.md) · **English** · [Français](../fr/README.md) · [Português](../pt/README.md) · [Български](../bg/README.md)
-
 # QA from scratch: scenarios that find errors
 
 **By Dorian Chávez, founder of Hábil and integration architect.**
@@ -39,7 +37,7 @@ The first time it builds the image and then leaves you in the store's terminal. 
 **http://localhost:8080**. From there you follow lesson 00, which teaches you to check that everything works and to use
 `verifica 00`, the command that checks your work at the end of each lesson.
 
-## The 15 lessons
+## The lessons
 
 | # | Lesson | What you take away |
 |---|---|---|

@@ -450,7 +450,7 @@ row covers only one; with 3 rows at least one is always missing.
    sufficient for mission-critical software». https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-142.pdf
 
 Our own measurement: the variables, the expected results and the messages were measured against the course's store
-(hb-curso-qa, develop 0ddda22) on November 21, 2026, with its API up without Docker. The 9 rows were run
+(HabilMX/curso-qa) on November 21, 2026, with its API up without Docker. The 9 rows were run
 with behave and only catalog phrases: 9 of 9 green with the clean store; with error E1 switched on, row 5
 red. The 3 «each value once» tests were also run: green with E1 switched off and with E1 switched on. The
 pair coverage of each table was counted with a script (37 of 37 and 18 of 37), and when row 9 was removed it flagged

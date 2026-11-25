@@ -650,8 +650,7 @@ to the order’s status: the data was there, and nobody looked at it.
    https://github.com/postmanlabs/postman-sandbox/blob/develop/CHANGELOG.yaml
 
 Own measurement: every output in this lesson was measured with curl and newman 6.2.2 on November 22, 2026, with the
-store’s API running without Docker and restarted before each run, against the course store (hb-curso-qa,
-f9247aa): the four gateway modes, E7, the 5-second wait (without it, the collection comes out green with E7) and
+store’s API running without Docker and restarted before each run, against the course store (HabilMX/curso-qa): the four gateway modes, E7, the 5-second wait (without it, the collection comes out green with E7) and
 the three exercises.
 
 Course rules, without an external source:

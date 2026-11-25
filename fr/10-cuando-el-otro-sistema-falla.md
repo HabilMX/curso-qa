@@ -658,8 +658,7 @@ le relier à l'état de la commande : la donnée était là, et personne ne l'a 
    https://github.com/postmanlabs/postman-sandbox/blob/develop/CHANGELOG.yaml
 
 Mesure propre : chaque sortie de cette leçon a été mesurée avec curl et newman 6.2.2 le 22 novembre 2026, avec l'API de
-la boutique lancée sans Docker et redémarrée avant chaque lancement, contre la boutique du cours (hb-curso-qa,
-f9247aa) : les quatre modes de la passerelle, E7, l'attente de 5 secondes (sans elle, la collection sort verte avec E7)
+la boutique lancée sans Docker et redémarrée avant chaque lancement, contre la boutique du cours (HabilMX/curso-qa) : les quatre modes de la passerelle, E7, l'attente de 5 secondes (sans elle, la collection sort verte avec E7)
 et les trois exercices.
 
 Règles du cours, sans source externe :

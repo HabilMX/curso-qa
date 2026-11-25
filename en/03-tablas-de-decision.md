@@ -420,7 +420,7 @@ you merge some afterwards. 4, six (2 × 3). 5, thirty-two (2⁵).
    information before we know what to do». It supports turning the gap into a question. https://cucumber.io/docs/bdd/
 
 Our own measurement: the scenarios for columns 3, 4, 5, 8a and 8b were run with behave against the course's store
-(hb-curso-qa, develop 0ddda22) on November 21, 2026. With the clean store, 5 of 5 green; with error E1 switched on, 2
+(HabilMX/curso-qa) on November 21, 2026. With the clean store, 5 of 5 green; with error E1 switched on, 2
 red (4 and 8b). The amounts ($111.00, $99.90, $899.10) and the minimum notice come from that run.
 
 Course rules, without an external source:

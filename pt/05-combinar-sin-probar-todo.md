@@ -445,7 +445,7 @@ cobre só um; com 3 linhas sempre falta pelo menos um.
    sufficient for mission-critical software». https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-142.pdf
 
 Medição própria: as variáveis, os resultados esperados e as mensagens foram medidos contra a loja do curso
-(hb-curso-qa, develop 0ddda22) em 21 de novembro de 2026, com a API dela no ar sem Docker. As 9 linhas foram rodadas
+(HabilMX/curso-qa) em 21 de novembro de 2026, com a API dela no ar sem Docker. As 9 linhas foram rodadas
 com behave e somente frases do catálogo: 9 de 9 em verde com a loja limpa; com o erro E1 ligado, a linha 5 em
 vermelho. Os 3 testes de «cada valor uma vez» também foram rodados: verdes com E1 desligado e com E1 ligado. A
 cobertura de pares de cada tabela foi contada com um script (37 de 37 e 18 de 37), e ao tirar a linha 9 ele marcou os três

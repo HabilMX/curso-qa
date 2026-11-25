@@ -518,7 +518,7 @@ compris et répondu ; si la règle a été respectée, c'est le corps qui le dit
    https://curl.se/docs/manpage.html
 
 Mesure propre : chaque code, corps et en-tête de cette leçon a été mesuré avec `curl -i` contre la boutique du cours
-(hb-curso-qa, commit db52e90) le 21 novembre 2026, avec son API lancée sans Docker, y compris les cinq requêtes de la
+(HabilMX/curso-qa) le 21 novembre 2026, avec son API lancée sans Docker, y compris les cinq requêtes de la
 feuille, les cinq de l'exercice 1 et la commande de Marta vue par Luis. La requête du coupon de l'étape 4 a été lancée
 avec E1 désactivée et activée : 200 les deux fois, avec une livraison de $0.00 et de $99.00.
 

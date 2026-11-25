@@ -457,7 +457,7 @@ valeurs ensemble, et « chaque valeur une fois » ne les réunit pas. 6, non : l
    sufficient for mission-critical software ». https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-142.pdf
 
 Mesure propre : les variables, les résultats attendus et les messages ont été mesurés contre la boutique du cours
-(hb-curso-qa, develop 0ddda22) le 21 novembre 2026, avec son API lancée sans Docker. Les 9 lignes ont été exécutées
+(HabilMX/curso-qa) le 21 novembre 2026, avec son API lancée sans Docker. Les 9 lignes ont été exécutées
 avec behave et uniquement des phrases du catalogue : 9 sur 9 au vert avec la boutique propre ; avec l'erreur E1
 activée, la ligne 5 au rouge. Les 3 tests de « chaque valeur une fois » ont aussi été exécutés : verts avec E1
 désactivée et avec E1 activée. La couverture de paires de chaque table a été comptée avec un script (37 sur 37 et 18 sur

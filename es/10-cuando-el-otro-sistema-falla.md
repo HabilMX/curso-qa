@@ -641,8 +641,7 @@ el estado del pedido: el dato estaba ahí, y nadie lo miró.
    https://github.com/postmanlabs/postman-sandbox/blob/develop/CHANGELOG.yaml
 
 Medición propia: cada salida de esta lección se midió con curl y newman 6.2.2 el 22 de noviembre de 2026, con la API
-de la tienda levantada sin Docker y reiniciada antes de cada corrida, contra la tienda del curso (hb-curso-qa,
-f9247aa): los cuatro modos de la pasarela, E7, la espera de 5 segundos (sin ella, la colección sale verde con E7) y
+de la tienda levantada sin Docker y reiniciada antes de cada corrida, contra la tienda del curso (HabilMX/curso-qa): los cuatro modos de la pasarela, E7, la espera de 5 segundos (sin ella, la colección sale verde con E7) y
 los tres ejercicios.
 
 Reglas del curso, sin fuente externa:

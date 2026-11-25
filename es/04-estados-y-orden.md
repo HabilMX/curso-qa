@@ -414,8 +414,7 @@ lo que haría la segunda. 4, a cancelado, y devuelve lo cobrado a la misma tarje
    information before we know what to do». Sostiene que una celda sin respuesta se vuelve pregunta.
    https://cucumber.io/docs/bdd/
 
-Medición propia: los estados, los eventos y los mensajes se midieron contra la tienda del curso (hb-curso-qa,
-develop 0ddda22) el 21 de noviembre de 2026, con su API levantada sin Docker. Los cinco escenarios de la lección se
+Medición propia: los estados, los eventos y los mensajes se midieron contra la tienda del curso (HabilMX/curso-qa) el 21 de noviembre de 2026, con su API levantada sin Docker. Los cinco escenarios de la lección se
 corrieron con behave y una versión de prueba de las frases de pedidos: 5 de 5 en verde con la tienda limpia; con el
 error E3 encendido, 2 en rojo (enviado y entregado).
 

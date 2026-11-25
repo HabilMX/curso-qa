@@ -419,7 +419,7 @@ combinaciones aunque luego juntes algunas. 4, seis (2 × 3). 5, treinta y dos (2
    information before we know what to do». Sostiene convertir el hueco en pregunta. https://cucumber.io/docs/bdd/
 
 Medición propia: los escenarios de las columnas 3, 4, 5, 8a y 8b se corrieron con behave contra la tienda del curso
-(hb-curso-qa, develop 0ddda22) el 21 de noviembre de 2026. Con la tienda limpia, 5 de 5 en verde; con el error E1
+(HabilMX/curso-qa) el 21 de noviembre de 2026. Con la tienda limpia, 5 de 5 en verde; con el error E1
 encendido, 2 en rojo (4 y 8b). Los montos ($111.00, $99.90, $899.10) y el aviso del mínimo salen de esa corrida.
 
 Reglas del curso, sin fuente externa:

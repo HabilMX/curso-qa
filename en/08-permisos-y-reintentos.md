@@ -758,7 +758,7 @@ store applies the same idea in its own way.
    https://learning.postman.com/docs/tests-and-scripts/write-scripts/variables-list/
 
 Own measurement: every output in this lesson was measured with curl and newman 6.2.2 against the course store
-(hb-curso-qa, develop 13cdb22) on November 21, 2026, with its API running without Docker and restarted before each run:
+(HabilMX/curso-qa) on November 21, 2026, with its API running without Docker and restarted before each run:
 the complete collection with Marta and with Luis, with the normal gateway and with the gateway taking 7 seconds (12 of
 12), with E4 and the slow gateway (2 reds), with E4 and the normal gateway (12 of 12), and the three exercises. E5 was
 measured with a prototype in a copy of the store, while the real one is being built.

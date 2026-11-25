@@ -704,7 +704,7 @@ llegó primero; que se cobró una sola vez no.
 
 Medición propia: cada salida de esta lección se midió con curl, bash y newman 6.2.2 el 21 y 22 de noviembre de 2026,
 con la API de la tienda levantada sin Docker y reiniciada antes de cada corrida: el cupón, el reloj y el 409 contra la
-tienda del curso (hb-curso-qa, develop 13cdb22); E2 «cupón dos veces» en paralelo (20 de 20 encendido, 0 de 20
+tienda del curso (HabilMX/curso-qa); E2 «cupón dos veces» en paralelo (20 de 20 encendido, 0 de 20
 apagado, 0 de 20 en secuencia) y E6 «fecha en UTC» contra un prototipo en una copia de la tienda, mientras se
 construyen los reales.
 

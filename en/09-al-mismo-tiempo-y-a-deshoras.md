@@ -705,7 +705,7 @@ arrived first; that it was charged only once does not.
 
 Own measurement: every output in this lesson was measured with curl, bash and newman 6.2.2 on November 21 and 22, 2026,
 with the store’s API running without Docker and restarted before each run: the coupon, the clock and the 409 against the
-course store (hb-curso-qa, develop 13cdb22); E2 «coupon twice» in parallel (20 of 20 switched on, 0 of 20 switched off,
+course store (HabilMX/curso-qa); E2 «coupon twice» in parallel (20 of 20 switched on, 0 of 20 switched off,
 0 of 20 in sequence) and E6 «date in UTC» against a prototype in a copy of the store, while the real ones are being built.
 
 Course rules, without an external source:

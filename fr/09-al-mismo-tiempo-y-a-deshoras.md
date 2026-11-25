@@ -714,7 +714,7 @@ qui est arrivé le premier ; qu'il y ait eu un seul prélèvement, non.
 
 Mesure propre : chaque sortie de cette leçon a été mesurée avec curl, bash et newman 6.2.2 les 21 et 22 novembre 2026, avec
 l'API de la boutique lancée sans Docker et redémarrée avant chaque lancement : le coupon, l'horloge et le 409 contre la
-boutique du cours (hb-curso-qa, develop 13cdb22) ; E2 « coupon deux fois » en parallèle (20 sur 20 activée, 0 sur 20
+boutique du cours (HabilMX/curso-qa) ; E2 « coupon deux fois » en parallèle (20 sur 20 activée, 0 sur 20
 désactivée, 0 sur 20 en séquence) et E6 « date en UTC » contre un prototype dans une copie de la boutique, pendant que les
 vrais se construisent.
 

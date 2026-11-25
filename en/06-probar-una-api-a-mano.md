@@ -509,7 +509,7 @@ the rule was met is told by the body.
    https://curl.se/docs/manpage.html
 
 Our own measurement: every code, body and header in this lesson was measured with `curl -i` against the course's
-store (hb-curso-qa, commit db52e90) on November 21, 2026, with its API up without Docker, including the five
+store (HabilMX/curso-qa) on November 21, 2026, with its API up without Docker, including the five
 requests of the sheet, the five of exercise 1 and Marta's order seen by Luis. The coupon request of step 4 was run
 with E1 switched off and switched on: 200 both times, with shipping $0.00 and $99.00.
 

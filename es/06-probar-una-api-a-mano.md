@@ -509,7 +509,7 @@ cumplió lo dice el cuerpo.
    https://curl.se/docs/manpage.html
 
 Medición propia: cada código, cuerpo y encabezado de esta lección se midió con `curl -i` contra la tienda del curso
-(hb-curso-qa, commit db52e90) el 21 de noviembre de 2026, con su API levantada sin Docker, incluidas las cinco
+(HabilMX/curso-qa) el 21 de noviembre de 2026, con su API levantada sin Docker, incluidas las cinco
 peticiones de la hoja, las cinco del ejercicio 1 y el pedido de Marta visto por Luis. La petición del cupón del paso 4
 se corrió con E1 apagado y encendido: 200 las dos veces, con envío $0.00 y $99.00.
 

@@ -1,5 +1,3 @@
-[Español](../es/README.md) · [English](../en/README.md) · [Français](../fr/README.md) · **Português** · [Български](../bg/README.md)
-
 # QA do zero: cenários que encontram erros
 
 **Por Dorian Chávez, fundador da Hábil e arquiteto de integração.**
@@ -38,7 +36,7 @@ Na primeira vez, o comando constrói a imagem e depois deixa você no terminal d
 **http://localhost:8080**. A partir daí você segue a lição 00, que ensina a conferir que tudo funciona e a usar
 `verifica 00`, o comando que confere o seu trabalho no fim de cada lição.
 
-## As 15 lições
+## As lições
 
 | # | Lição | O que fica com você |
 |---|---|---|

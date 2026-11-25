@@ -414,8 +414,7 @@ delivered.
    information before we know what to do». It supports that a cell without an answer becomes a question.
    https://cucumber.io/docs/bdd/
 
-Our own measurement: the states, the events and the messages were measured against the course's store (hb-curso-qa,
-develop 0ddda22) on November 21, 2026, with its API up without Docker. The five scenarios of the lesson were run with
+Our own measurement: the states, the events and the messages were measured against the course's store (HabilMX/curso-qa) on November 21, 2026, with its API up without Docker. The five scenarios of the lesson were run with
 behave and a test version of the order phrases: 5 of 5 green with the clean store; with error E3 switched on, 2 red
 (shipped and delivered).
 

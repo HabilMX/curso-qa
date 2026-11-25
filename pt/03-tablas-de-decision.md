@@ -420,7 +420,7 @@ combinações mesmo que depois você junte algumas. 4, seis (2 × 3). 5, trinta 
    information before we know what to do». Sustenta transformar o buraco em pergunta. https://cucumber.io/docs/bdd/
 
 Medição própria: os cenários das colunas 3, 4, 5, 8a e 8b foram rodados com behave contra a loja do curso
-(hb-curso-qa, develop 0ddda22) em 21 de novembro de 2026. Com a loja limpa, 5 de 5 em verde; com o erro E1
+(HabilMX/curso-qa) em 21 de novembro de 2026. Com a loja limpa, 5 de 5 em verde; com o erro E1
 ligado, 2 em vermelho (4 e 8b). Os valores ($111.00, $99.90, $899.10) e o aviso do mínimo saem dessa rodada.
 
 Regras do curso, sem fonte externa:

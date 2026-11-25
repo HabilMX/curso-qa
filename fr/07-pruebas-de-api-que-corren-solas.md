@@ -679,8 +679,7 @@ les trois t-shirts), ou bien examiner la collection et n'y trouver aucun nom. Le
    throughout the requests in a collection and are independent of environments ».
    https://learning.postman.com/docs/sending-requests/variables/variables/
 
-Mesure propre : chaque sortie de cette leçon a été mesurée avec newman 6.2.2 contre la boutique du cours (hb-curso-qa,
-commit db52e90) le 21 novembre 2026, avec son API lancée sans Docker et redémarrée à chaque lancement : la collection
+Mesure propre : chaque sortie de cette leçon a été mesurée avec newman 6.2.2 contre la boutique du cours (HabilMX/curso-qa) le 21 novembre 2026, avec son API lancée sans Docker et redémarrée à chaque lancement : la collection
 complète avec Marta et avec Luis (7 tests sur 7 verts, code de sortie 0), avec E1 activée (1 rouge, « livraison
 gratuite », code de sortie 1), le test de la connexion écrit avec 200, et les trois exercices. L'image de la boutique
 embarque newman 6.2.3.

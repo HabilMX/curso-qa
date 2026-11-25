@@ -642,7 +642,7 @@ do pedido: o dado estava ali, e ninguém o olhou.
    https://github.com/postmanlabs/postman-sandbox/blob/develop/CHANGELOG.yaml
 
 Medição própria: cada saída desta lição foi medida com curl e newman 6.2.2 em 22 de novembro de 2026, com a API da loja
-no ar sem Docker e reiniciada antes de cada rodada, contra a loja do curso (hb-curso-qa, f9247aa): os quatro modos do
+no ar sem Docker e reiniciada antes de cada rodada, contra a loja do curso (HabilMX/curso-qa): os quatro modos do
 gateway, o E7, a espera de 5 segundos (sem ela, a coleção sai verde com E7) e os três exercícios.
 
 Regras do curso, sem fonte externa:

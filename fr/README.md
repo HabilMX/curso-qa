@@ -1,5 +1,3 @@
-[Español](../es/README.md) · [English](../en/README.md) · **Français** · [Português](../pt/README.md) · [Български](../bg/README.md)
-
 # QA depuis zéro : des scénarios qui trouvent les erreurs
 
 **Par Dorian Chávez, fondateur de Hábil et architecte d'intégration.**
@@ -40,7 +38,7 @@ La première fois, la commande construit l'image, puis te laisse dans le termina
 l'adresse **http://localhost:8080**. De là, tu suis la leçon 00, qui t'apprend à vérifier que tout fonctionne et à
 utiliser `verifica 00`, la commande qui contrôle ton travail à la fin de chaque leçon.
 
-## Les 15 leçons
+## Les leçons
 
 | # | Leçon | Ce que tu en retires |
 |---|---|---|

@@ -772,7 +772,7 @@ propose 422 quand une clé est réutilisée avec un corps différent ; la boutiq
    https://learning.postman.com/docs/tests-and-scripts/write-scripts/variables-list/
 
 Mesure propre : chaque sortie de cette leçon a été mesurée avec curl et newman 6.2.2 contre la boutique du cours
-(hb-curso-qa, develop 13cdb22) le 21 novembre 2026, avec son API lancée sans Docker et redémarrée à chaque lancement : la
+(HabilMX/curso-qa) le 21 novembre 2026, avec son API lancée sans Docker et redémarrée à chaque lancement : la
 collection complète avec Marta et avec Luis, avec la passerelle normale et avec la passerelle qui tarde 7 secondes (12 sur
 12), avec E4 et la passerelle lente (2 rouges), avec E4 et la passerelle normale (12 sur 12), et les trois exercices. E5 a
 été mesurée avec un prototype dans une copie de la boutique, pendant que la vraie se construit.

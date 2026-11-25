@@ -757,8 +757,7 @@ cuerpo distinto; la tienda aplica la misma idea a su manera.
    pm.variables.replaceIn()»; «$guid A uuid-v4 style guid».
    https://learning.postman.com/docs/tests-and-scripts/write-scripts/variables-list/
 
-Medición propia: cada salida de esta lección se midió con curl y newman 6.2.2 contra la tienda del curso (hb-curso-qa,
-develop 13cdb22) el 21 de noviembre de 2026, con su API levantada sin Docker y reiniciada antes de cada corrida: la
+Medición propia: cada salida de esta lección se midió con curl y newman 6.2.2 contra la tienda del curso (HabilMX/curso-qa) el 21 de noviembre de 2026, con su API levantada sin Docker y reiniciada antes de cada corrida: la
 colección completa con Marta y con Luis, con la pasarela normal y con la pasarela tardando 7 segundos (12 de 12), con
 E4 y la pasarela lenta (2 rojas), con E4 y la pasarela normal (12 de 12), y los tres ejercicios. E5 se midió con un
 prototipo en una copia de la tienda, mientras se construye el real.

@@ -700,7 +700,7 @@ primeiro; que se cobrou uma só vez, não.
 
 Medição própria: cada saída desta lição foi medida com curl, bash e newman 6.2.2 em 21 e 22 de novembro de 2026, com a API
 da loja no ar sem Docker e reiniciada antes de cada rodada: o cupom, o relógio e o 409 contra a loja do curso
-(hb-curso-qa, develop 13cdb22); o E2 «cupom duas vezes» em paralelo (20 de 20 ligado, 0 de 20 desligado, 0 de 20 em
+(HabilMX/curso-qa); o E2 «cupom duas vezes» em paralelo (20 de 20 ligado, 0 de 20 desligado, 0 de 20 em
 sequência) e o E6 «data em UTC» contra um protótipo em uma cópia da loja, enquanto se constroem os de verdade.
 
 Regras do curso, sem fonte externa:

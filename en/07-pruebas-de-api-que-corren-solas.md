@@ -664,8 +664,7 @@ cart with Luis's session and see that it has the three T-shirts), or review the 
    throughout the requests in a collection and are independent of environments».
    https://learning.postman.com/docs/sending-requests/variables/variables/
 
-Own measurement: every output in this lesson was measured with newman 6.2.2 against the course store (hb-curso-qa,
-commit db52e90) on November 21, 2026, with its API running without Docker and restarted before each run: the complete
+Own measurement: every output in this lesson was measured with newman 6.2.2 against the course store (HabilMX/curso-qa) on November 21, 2026, with its API running without Docker and restarted before each run: the complete
 collection with Marta and with Luis (7 of 7 tests green, exit code 0), with E1 switched on (1 red, «free shipping»,
 exit code 1), the sign-in test written with 200, and the three exercises. The store image ships newman 6.2.3.
 

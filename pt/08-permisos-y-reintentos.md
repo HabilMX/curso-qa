@@ -748,8 +748,7 @@ mesma ideia à sua maneira.
    pm.variables.replaceIn()»; «$guid A uuid-v4 style guid».
    https://learning.postman.com/docs/tests-and-scripts/write-scripts/variables-list/
 
-Medição própria: cada saída desta lição foi medida com curl e newman 6.2.2 contra a loja do curso (hb-curso-qa, develop
-13cdb22) em 21 de novembro de 2026, com a API dela no ar sem Docker e reiniciada antes de cada rodada: a coleção completa
+Medição própria: cada saída desta lição foi medida com curl e newman 6.2.2 contra a loja do curso (HabilMX/curso-qa) em 21 de novembro de 2026, com a API dela no ar sem Docker e reiniciada antes de cada rodada: a coleção completa
 com a Marta e com o Luis, com o gateway normal e com o gateway demorando 7 segundos (12 de 12), com E4 e o gateway lento
 (2 vermelhos), com E4 e o gateway normal (12 de 12), e os três exercícios. O E5 foi medido com um protótipo em uma cópia
 da loja, enquanto se constrói o de verdade.

@@ -447,7 +447,7 @@ cubre solo uno; con 3 filas siempre falta al menos uno.
    sufficient for mission-critical software». https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-142.pdf
 
 Medición propia: las variables, los resultados esperados y los mensajes se midieron contra la tienda del curso
-(hb-curso-qa, develop 0ddda22) el 21 de noviembre de 2026, con su API levantada sin Docker. Las 9 filas se corrieron
+(HabilMX/curso-qa) el 21 de noviembre de 2026, con su API levantada sin Docker. Las 9 filas se corrieron
 con behave y solo frases del catálogo: 9 de 9 en verde con la tienda limpia; con el error E1 encendido, la fila 5 en
 rojo. Las 3 pruebas de «cada valor una vez» también se corrieron: verdes con E1 apagado y con E1 encendido. La
 cobertura de pares de cada tabla se contó con un script (37 de 37 y 18 de 37), y al quitar la fila 9 marcó los tres

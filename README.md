@@ -38,7 +38,7 @@ La primera vez construye la imagen y luego te deja en la terminal de la tienda. 
 **http://localhost:8080**. Desde ahí sigues la lección 00, que te enseña a comprobar que todo funciona y a usar
 `verifica 00`, el comando que revisa tu trabajo al final de cada lección.
 
-## Las 15 lecciones
+## Las lecciones
 
 | # | Lección | Qué te llevas |
 |---|---|---|

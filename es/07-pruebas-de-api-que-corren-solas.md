@@ -661,8 +661,7 @@ encontrar ahí ningún nombre. El `verifica 07` hace las dos cosas.
    throughout the requests in a collection and are independent of environments».
    https://learning.postman.com/docs/sending-requests/variables/variables/
 
-Medición propia: cada salida de esta lección se midió con newman 6.2.2 contra la tienda del curso (hb-curso-qa, commit
-db52e90) el 21 de noviembre de 2026, con su API levantada sin Docker y después de reiniciarla en cada corrida: la
+Medición propia: cada salida de esta lección se midió con newman 6.2.2 contra la tienda del curso (HabilMX/curso-qa) el 21 de noviembre de 2026, con su API levantada sin Docker y después de reiniciarla en cada corrida: la
 colección completa con Marta y con Luis (7 de 7 pruebas verdes, código de salida 0), con E1 encendido (1 roja, «envío
 gratis», código de salida 1), la prueba del inicio de sesión escrita con 200, y los tres ejercicios. La imagen de la
 tienda trae newman 6.2.3.

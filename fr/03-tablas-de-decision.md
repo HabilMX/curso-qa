@@ -436,7 +436,7 @@ condition.
    https://cucumber.io/docs/bdd/
 
 Mesure propre : les scénarios des colonnes 3, 4, 5, 8a et 8b ont été exécutés avec behave contre la boutique du cours
-(hb-curso-qa, develop 0ddda22) le 21 novembre 2026. Avec la boutique propre, 5 sur 5 au vert ; avec l'erreur E1
+(HabilMX/curso-qa) le 21 novembre 2026. Avec la boutique propre, 5 sur 5 au vert ; avec l'erreur E1
 activée, 2 au rouge (4 et 8b). Les montants ($111.00, $99.90, $899.10) et l'avis du minimum sortent de cette exécution.
 
 Règles du cours, sans source externe :

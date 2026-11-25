@@ -421,8 +421,7 @@ carte. 5, vers livrée.
    information before we know what to do ». Elle appuie qu'une case sans réponse devient une question.
    https://cucumber.io/docs/bdd/
 
-Mesure propre : les états, les événements et les messages ont été mesurés contre la boutique du cours (hb-curso-qa,
-develop 0ddda22) le 21 novembre 2026, avec son API lancée sans Docker. Les cinq scénarios de la leçon ont été exécutés
+Mesure propre : les états, les événements et les messages ont été mesurés contre la boutique du cours (HabilMX/curso-qa) le 21 novembre 2026, avec son API lancée sans Docker. Les cinq scénarios de la leçon ont été exécutés
 avec behave et une version de test des phrases de commandes : 5 sur 5 au vert avec la boutique propre ; avec l'erreur
 E3 activée, 2 au rouge (expédiée et livrée).
 

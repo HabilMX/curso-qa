@@ -413,8 +413,7 @@ o que a segunda faria. 4, para cancelado, e devolve o que foi cobrado ao mesmo c
    information before we know what to do». Sustenta que uma célula sem resposta vira pergunta.
    https://cucumber.io/docs/bdd/
 
-Medição própria: os estados, os eventos e as mensagens foram medidos contra a loja do curso (hb-curso-qa,
-develop 0ddda22) em 21 de novembro de 2026, com a API dela no ar sem Docker. Os cinco cenários da lição foram
+Medição própria: os estados, os eventos e as mensagens foram medidos contra a loja do curso (HabilMX/curso-qa) em 21 de novembro de 2026, com a API dela no ar sem Docker. Os cinco cenários da lição foram
 rodados com behave e uma versão de teste das frases de pedidos: 5 de 5 em verde com a loja limpa; com o
 erro E3 ligado, 2 em vermelho (enviado e entregue).
 

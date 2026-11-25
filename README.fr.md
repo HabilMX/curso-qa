@@ -40,7 +40,7 @@ La première fois, la commande construit l'image, puis te laisse dans le termina
 l'adresse **http://localhost:8080**. De là, tu suis la leçon 00, qui t'apprend à vérifier que tout fonctionne et à
 utiliser `verifica 00`, la commande qui contrôle ton travail à la fin de chaque leçon.
 
-## Les 15 leçons
+## Les leçons
 
 | # | Leçon | Ce que tu en retires |
 |---|---|---|
