@@ -56,7 +56,7 @@ The first time it builds the image and then leaves you in the store's terminal. 
 | 10 | [When the other system fails](10-cuando-el-otro-sistema-falla.md) | Checking that an order's state and the money add up when the payment gateway is slow |
 | 11 | [The browser, only for what is critical](11-el-navegador-solo-para-lo-critico.md) | A browser test for what is only seen on the page, and why it is used sparingly |
 | 12 | [Report it so they can fix it](12-reportar-para-que-lo-arreglen.md) | A report with steps that anyone can paste and reproduce, with severity and priority |
-| 13 | Does your test work? | Planting errors to find out which ones your tests see, and finding the test that protects an error |
+| 13 | [Does your test work?](13-tu-prueba-sirve.md) | Planting errors to find out which ones your tests see, and finding the test that protects an error |
 | 14 | Put it all together: Monday’s story | A complete story, tested by risk with everything before, and where you stand against the ISTQB CTFL exam |
 
 Each lesson ends with its `verifica`, which runs your work against the clean store and against the store with the
