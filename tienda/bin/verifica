@@ -389,6 +389,43 @@ def _ambiente(valores: list, **cambios) -> dict:
     return {"values": salida}
 
 
+# Las tres peticiones de la L07, por lo que HACEN (método y ruta), no por su nombre: el nombre lo elige el alumno.
+# La lección las pide en este orden; las peticiones de más no estorban, estén donde estén.
+TRES_07 = (("producto", "GET", re.compile(r"/api/productos/[^/]+/?")),
+           ("sesion", "POST", re.compile(r"/api/sesiones/?")),
+           ("carrito", "PUT", re.compile(r"/api/carrito/productos/[^/]+/?")))
+# Lo que va antes de la ruta: {{base}} (o cualquier variable) o un http(s)://anfitrión[:puerto].
+INICIO_07 = re.compile(r"^(?:\{\{[^}]*\}\}|[a-z]+://[^/]*)?")
+
+
+def _ruta_07(peticion) -> str:
+    """La ruta que de verdad pide la petición, sin anfitrión ni query. Con la URL como objeto manda «path», que es
+    lo que usa newman al armarla; «raw» solo cuando no hay «path»."""
+    url = peticion.get("url") if isinstance(peticion, dict) else peticion
+    if isinstance(url, dict) and url.get("path"):
+        camino = url["path"]
+        ruta = "/" + ("/".join(map(str, camino)) if isinstance(camino, list) else str(camino)).lstrip("/")
+    else:
+        ruta = INICIO_07.sub("", _url_de(peticion).strip(), count=1)
+    return re.split(r"[?#]", ruta, maxsplit=1)[0]
+
+
+def _tres_07(coleccion: dict) -> list[str | None]:
+    """Qué es cada petición de la colección, en su orden: «producto», «sesion», «carrito» o None."""
+    tipos = []
+    for _, peticion, _ in _peticiones(coleccion.get("item")):
+        metodo = str(peticion.get("method", "GET") if isinstance(peticion, dict) else "GET").upper()
+        ruta = _ruta_07(peticion)
+        tipos.append(next((t for t, m, patron in TRES_07 if m == metodo and patron.fullmatch(ruta)), None))
+    return tipos
+
+
+def _en_orden_07(tipos: list) -> bool:
+    """¿Aparecen el producto, la sesión y el carrito en ese orden, aunque haya otras antes, entre o después?"""
+    quedan = iter(tipos)
+    return all(any(t == buscado for t in quedan) for buscado, _, _ in TRES_07)
+
+
 def leccion_07() -> bool:
     coleccion, ambiente = PRACTICA / COLECCION_07, PRACTICA / AMBIENTE_07
     hay_c = punto(coleccion.is_file(), T("verifica.archivo", archivo=COLECCION_07),
@@ -414,6 +451,13 @@ def leccion_07() -> bool:
     a_mano = _a_mano(datos_c, A_MANO)
     if not punto(not a_mano, T("verifica.07.todo_del_ambiente"),
                  "\n".join(f"     · {h}" for h in a_mano[:6])):
+        return False
+    tipos = _tres_07(datos_c)
+    faltan = [T(f"verifica.07.{t}") for t, _, _ in TRES_07 if t not in tipos]
+    vistas = [t for t in tipos if t]                         # las tres (y sus repeticiones) tal como vienen
+    if not punto(not faltan and _en_orden_07(tipos), T("verifica.07.tres"),
+                 T("verifica.07.tres_falta", faltan=", ".join(faltan)) if faltan else
+                 T("verifica.07.orden_falta", orden=", ".join(T(f"verifica.07.{t}") for t in vistas))):
         return False
     codigo, antes = pedir("/control/errores")
     if codigo != 200:
@@ -1211,6 +1255,232 @@ def leccion_13() -> bool:
             cambiar_error(e, antes[e])
 
 
+# ---------------------------------------------------------------- 14: junta todo, la historia del lunes
+
+FEATURE_14, COLECCION_14, AMBIENTE_14 = "lunes.feature", "lunes.postman_collection.json", "local.postman_environment.json"
+SCRIPT_14, REPORTE_14 = "lunes.py", "reporte.md"
+PROVOCA_14 = PROVOCA_12 + [(re.compile(r"\btienda\s+lunes\b", re.I), "tienda lunes")]
+AVISO_14 = re.compile(r"tienda\s+lunes\s+fin|\bE[1-8]\b")   # los avisos del lunes (×5 nombran el comando) y la tabla
+TOPE_14 = int(os.environ.get("VERIFICA_14_TOPE", "60"))   # segundos para los pasos del reporte
+# Lo que cambia de una corrida a otra sin que la tienda cambie: una fecha con hora, un token de sesión, un uuid.
+VOLATIL_14 = [(re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?"), "«fecha»"),
+              (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "«uuid»"),
+              (re.compile(r"[A-Za-z0-9_-]{24,}"), "«token»")]
+
+
+def _lunes(encendido: bool, solo: int | None = None) -> dict:
+    """Abre o cierra el modo lunes por su propio camino (/control/lunes), nunca con `tienda error`: en el lunes, ése
+    no actúa. `solo` abre uno solo de sus errores, por su número de orden: el verifica no sabe cómo se llaman."""
+    cuerpo = {"encendido": encendido, **({"solo": solo} if solo is not None else {})}
+    r = urllib.request.Request(URL + "/control/lunes", method="PUT", data=json.dumps(cuerpo).encode(),
+                               headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(r, timeout=10) as x:
+        return json.loads(x.read())
+
+
+def _rojo_14(pieza: str, rutas: dict, ambiente: dict) -> bool | None:
+    """¿Sale roja esta pieza, con la tienda recién reiniciada? None si no terminó a tiempo (cuenta como no roja)."""
+    _reiniciar()
+    if pieza == FEATURE_14:
+        r = correr([rutas[FEATURE_14]])
+        return r["roto"] or r["rojos"] >= 1
+    if pieza == COLECCION_14:
+        r = _newman(rutas[COLECCION_14], ambiente)
+        return bool(r.get("roto")) or r.get("rojas", 0) >= 1
+    rc, _ = _correr_11(rutas[SCRIPT_14])
+    return None if rc is None else rc != 0
+
+
+def _salida_14(bloque: str):
+    """Lo que imprimen los pasos del reporte, sin lo que cambia solo (fechas, tokens). None si no terminan a tiempo.
+    La salida va a un archivo, no a una tubería: un `&` que se queda escribiendo no deja colgado al verifica."""
+    from urllib.parse import urlparse
+    import signal
+    donde = urlparse(URL).netloc
+    if donde not in ("127.0.0.1:8080", "localhost:8080"):
+        bloque = bloque.replace("localhost:8080", donde)
+    ambiente = {**os.environ, "TIENDA_URL": URL,
+                "PATH": f"{Path(__file__).resolve().parent}{os.pathsep}{os.environ.get('PATH', '')}"}
+    with tempfile.TemporaryFile("w+", encoding="utf-8", errors="replace") as out:
+        proceso = subprocess.Popen(["bash", "-c", bloque], cwd=str(PRACTICA), env=ambiente, stdin=subprocess.DEVNULL,
+                                   stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            proceso.wait(timeout=TOPE_14)
+            termino = True
+        except subprocess.TimeoutExpired:
+            termino = False
+        finally:
+            try:
+                os.killpg(proceso.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proceso.wait()
+        if not termino:
+            return None
+        out.seek(0)
+        texto = out.read()
+    # Lo que el `tienda` imprime SOBRE el modo lunes o sobre los interruptores no es el error de la historia: en el
+    # lunes, `tienda reiniciar` agrega «sigue encendido… tienda lunes fin» y `tienda error estado` cambia la tabla
+    # por un aviso. Si contaran, unos pasos que no reproducen nada saldrían distintos solo por eso.
+    texto = "\n".join(x for x in texto.splitlines() if not AVISO_14.search(x))
+    for patron, en_su_lugar in VOLATIL_14:
+        texto = patron.sub(en_su_lugar, texto)
+    return texto.strip()
+
+
+def _muestra_14(texto: str) -> str:
+    return "\n".join(f"     · {x}" for x in (texto or "").splitlines()[-4:]) or "     · " + T("verifica.14.nada")
+
+
+def leccion_14() -> bool:
+    archivos = (FEATURE_14, COLECCION_14, AMBIENTE_14, SCRIPT_14, REPORTE_14)
+    hay = [punto((PRACTICA / a).is_file(), T("verifica.archivo", archivo=a), T("verifica.archivo_falta", archivo=a))
+           for a in archivos]
+    if not all(hay):
+        return False
+    rutas = {a: PRACTICA / a for a in archivos}
+    try:
+        coleccion, ambiente = _leer_json(rutas[COLECCION_14]), _leer_json(rutas[AMBIENTE_14])
+    except (OSError, ValueError):
+        return punto(False, T("verifica.07.json"), T("verifica.07.json_falta"))
+    if not (isinstance(coleccion, dict) and isinstance(coleccion.get("item"), list)
+            and isinstance(ambiente, dict) and isinstance(ambiente.get("values"), list)
+            and all(isinstance(v, dict) and isinstance(v.get("key"), str) for v in ambiente["values"])):
+        return punto(False, T("verifica.07.json"), T("verifica.07.no_es_coleccion"))
+    activos = {v["key"] for v in ambiente["values"] if v.get("enabled", True) is not False}
+    faltan = [k for k in LLAVES_08 if k not in activos]
+    if not punto(not faltan, T("verifica.14.ambiente"), T("verifica.14.ambiente_falta", faltan=", ".join(faltan))):
+        return False
+    try:
+        fuente = _cadenas_que_usa(rutas[SCRIPT_14].read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError):
+        fuente = ""
+    a_mano = [f"{SCRIPT_14}: {que}" for patron, que in A_MANO if patron.search(fuente)] + \
+        [f"{COLECCION_14}: {h}" for h in _a_mano(coleccion, A_MANO_08)]
+    if not punto(not a_mano, T("verifica.14.a_mano"),
+                 T("verifica.14.a_mano_falta", que="\n".join(f"     · {x}" for x in a_mano[:6]))):
+        return False
+    try:
+        md = rutas[REPORTE_14].read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    except (OSError, UnicodeDecodeError):
+        md = ""
+    veces = [_encabezados_12(md, nombres) for nombres in SECCIONES_12]
+    faltan = [T(f"verifica.12.seccion_{i}") for i, n in enumerate(veces) if n == 0]
+    repetidas = [T(f"verifica.12.seccion_{i}") for i, n in enumerate(veces) if n > 1]
+    if not punto(not faltan and not repetidas, T("verifica.12.secciones"),
+                 T("verifica.12.secciones_falta", faltan=", ".join(faltan)) if faltan else
+                 T("verifica.12.una_vez_falta", repetidas=", ".join(repetidas))):
+        return False
+    bloques = _pasos_12(md)
+    if not punto(len(bloques) == 1, T("verifica.12.un_bloque"), T("verifica.12.un_bloque_falta", n=len(bloques))):
+        return False
+    # Sin comillas ni barras: `tienda "error" estado` o `tienda \\lunes` corren igual que sin ellas.
+    limpio = re.sub(r"[\'\"\\\\]", "", _sin_comentarios_12(bloques[0]))
+    provoca = [que for patron, que in PROVOCA_14 if patron.search(limpio)]
+    if not punto(not provoca, T("verifica.12.no_provoca"), T("verifica.12.no_provoca_falta", que=", ".join(provoca))):
+        return False
+
+    # Si el alumno dejó el lunes abierto, se cierra por su propio camino y se vuelve a abrir al final, como estaba.
+    codigo, lunes = pedir("/control/lunes")
+    if codigo != 200:
+        return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+    estaba_abierto = bool(lunes.get("activo"))
+    if estaba_abierto:
+        _lunes(False)
+        print(T("verifica.14.cierro_lunes"))
+        lunes = pedir("/control/lunes")[1]
+    cuantos = int(lunes.get("cuantos", 0))
+    codigo, antes = pedir("/control/errores")
+    try:
+        if codigo != 200:
+            return punto(False, T("verifica.00.api"), T("verifica.00.api_falta"))
+        for e in antes:
+            if antes[e]:
+                cambiar_error(e, False)
+        propio = _ambiente(ambiente["values"], base=URL)
+
+        # 1. Las tres piezas, verdes con la tienda limpia.
+        _reiniciar()
+        r = correr([rutas[FEATURE_14]])
+        if r["roto"]:
+            return punto(False, T("verifica.forma", archivo=FEATURE_14),
+                         T("verifica.forma_falta", detalle="\n".join(r["salida"].strip().splitlines()[-6:])))
+        if not punto(not r["sin_frase"], T("verifica.frases", archivo=FEATURE_14),
+                     T("verifica.frases_falta", frases="\n".join(f"     · {f}" for f in r["sin_frase"][:5]))):
+            return False
+        total = r["pasaron"] + r["rojos"]
+        if total == 0:
+            return punto(False, T("verifica.escenarios", archivo=FEATURE_14),
+                         T("verifica.sin_escenarios", archivo=FEATURE_14))
+        if not punto(r["rojos"] == 0, T("verifica.limpia", n=total),
+                     T("verifica.limpia_falta", rojos=r["rojos"], n=total,
+                       detalle="\n".join(f"     · {f}" for f in r["fallas"]))):
+            return False
+        _reiniciar()
+        r = _newman(rutas[COLECCION_14], propio)
+        if r.get("sin_newman"):
+            return punto(False, T("verifica.14.coleccion_limpia"), T("verifica.07.sin_newman"))
+        if not punto(not r.get("roto") and r.get("total", 0) > 0 and r.get("rojas", 1) == 0,
+                     T("verifica.14.coleccion_limpia"),
+                     T("verifica.14.coleccion_limpia_falta", detalle=_detalle(r) or
+                       "\n".join(f"     · {x}" for x in r.get("salida", [])))):
+            return False
+        _reiniciar()
+        rc, salida = _correr_11(rutas[SCRIPT_14])
+        if not punto(rc == 0, T("verifica.14.py_limpia"),
+                     T("verifica.14.py_tope", tope=TOPE_11) if rc is None else
+                     T("verifica.14.py_limpia_falta", rc=rc, salida=salida)):
+            return False
+
+        # 2. Cada error del lunes, encendido solo: al menos una pieza roja. Se le dice por su número, no por su nombre.
+        todos = True
+        for n in range(1, cuantos + 1):
+            _lunes(True, solo=n)
+            try:
+                roja = next((p for p in (FEATURE_14, COLECCION_14, SCRIPT_14) if _rojo_14(p, rutas, propio)), None)
+            finally:
+                _lunes(False)
+            todos = punto(roja is not None, T("verifica.14.error_n", n=n, de=cuantos, pieza=roja or ""),
+                          T("verifica.14.error_n_falta", n=n, de=cuantos)) and todos
+        if not todos:
+            return False
+
+        # 3. El reporte: con la tienda limpia imprime lo mismo dos veces; en el lunes, otra cosa.
+        salidas = []
+        for _ in range(2):
+            _reiniciar()
+            _previo_12()
+            salidas.append(_salida_14(bloques[0]))
+        if None in salidas:
+            return punto(False, T("verifica.14.reporte_estable"), T("verifica.14.tope", tope=TOPE_14))
+        if not punto(salidas[0] == salidas[1], T("verifica.14.reporte_estable"),
+                     T("verifica.14.reporte_estable_falta", una=_muestra_14(salidas[0]), otra=_muestra_14(salidas[1]))):
+            return False
+        _lunes(True)
+        try:
+            _reiniciar()
+            _previo_12()
+            en_lunes = _salida_14(bloques[0])
+        finally:
+            _lunes(False)
+        if en_lunes is None:
+            return punto(False, T("verifica.14.reporte_lunes"), T("verifica.14.tope", tope=TOPE_14))
+        return punto(en_lunes != salidas[0], T("verifica.14.reporte_lunes"),
+                     T("verifica.14.reporte_lunes_falta", salida=_muestra_14(en_lunes)))
+    finally:
+        # Se pregunta a la tienda, no a una bandera: unos pasos de reporte también pueden abrir el lunes, y con el
+        # lunes abierto devolver los errores a como estaban choca con el 423 (y se perdería lo del alumno).
+        if pedir("/control/lunes")[1].get("activo"):
+            _lunes(False)
+        _reiniciar()
+        if codigo == 200:
+            for e in antes:
+                cambiar_error(e, antes[e])
+        if estaba_abierto:
+            _lunes(True)
+            print(T("verifica.14.reabro_lunes"))
+
+
 LECCIONES = {
     "00": leccion_00,
     "01": lambda: escenarios("cupon.feature", None),
@@ -1226,6 +1496,7 @@ LECCIONES = {
     "11": leccion_11,
     "12": leccion_12,
     "13": leccion_13,
+    "14": leccion_14,
 }
 
 
@@ -1239,6 +1510,12 @@ def main(args) -> int:
         disponibles = ", ".join(sorted(LECCIONES))
         print(T("verifica.sin_verifica", leccion=leccion, disponibles=disponibles))
         return 2
+    if leccion != "14":
+        codigo, lunes = pedir("/control/lunes")
+        if codigo == 200 and lunes.get("activo"):
+            # Los demás verifica apagan y prenden errores con /control/errores, que en el lunes no actúa.
+            print(T("verifica.lunes_abierto", leccion=leccion))
+            return 1
     print(T("verifica.revisando", leccion=leccion) + "\n")
     ok = revisar()
     print("\n" + (T("verifica.completa") if ok else T("verifica.falta", leccion=leccion)))

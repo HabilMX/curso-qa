@@ -512,11 +512,14 @@ verifica 07
 
 El `verifica`:
 
-1. corre tu colección con tu ambiente y la tienda limpia: tiene que salir **verde**;
-2. la corre con E1 encendido: **al menos una prueba tiene que salir roja**; si sale verde, tu colección no estaba
+1. revisa que tu colección traiga las tres peticiones de la lección, en orden: el producto, el inicio de sesión y el
+   carrito. Las reconoce por lo que hacen (el método y la ruta), no por cómo las llamaste, y si agregaste otras, no
+   estorban;
+2. corre tu colección con tu ambiente y la tienda limpia: tiene que salir **verde**;
+3. la corre con E1 encendido: **al menos una prueba tiene que salir roja**; si sale verde, tu colección no estaba
    mirando el envío;
-3. la corre con un ambiente que arma él mismo, con Luis, y revisa que tu colección haya iniciado sesión **como Luis**;
-4. revisa que ninguna petición tenga escritos a mano la dirección, `Marta` o su contraseña.
+4. la corre con un ambiente que arma él mismo, con Luis, y revisa que tu colección haya iniciado sesión **como Luis**;
+5. revisa que ninguna petición tenga escritos a mano la dirección, `Marta` o su contraseña.
 
 Si algo falta, te dice qué petición y qué arreglar. Antes de correrlo, la lista de abajo te dice si la forma está bien.
 

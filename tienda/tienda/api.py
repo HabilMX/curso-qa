@@ -47,16 +47,10 @@ app = FastAPI(title="Tienda de práctica — QA desde cero", version="0.1.0", li
 
 @app.get("/estaticos/app.js", include_in_schema=False)
 def guion_de_la_pagina():
-    """El guion de la página. E8 «la página no deja pagar» vive solo aquí: el botón «Pagar» crea el pedido, no manda
-    el pago y aun así dice que quedó pagado. La API no cambia, así que una colección no lo ve; un navegador, sí."""
-    con = datos.conectar()
-    try:
-        e8 = datos.error_encendido(con, "E8")
-    finally:
-        con.close()
+    """El guion de la página, sin caché. Es el MISMO texto con cualquier error encendido: el alumno lo puede leer,
+    y si cambiara con E8 delataría cuál está encendido (en el modo lunes, L14, eso es trampa). E8 se decide en
+    `pagar`, con el pago que llega marcado «X-Desde: pagina»."""
     js = (PAGINA / "app.js").read_text(encoding="utf-8")
-    if e8:
-        js = js.replace("const LA_PAGINA_PAGA = true;", "const LA_PAGINA_PAGA = false;", 1)
     return Response(js, media_type="text/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
 
 
@@ -441,7 +435,8 @@ def _revisar_cupon_sin_candado(con, pedido_id: int, cliente_id: int) -> None:
 
 @app.post("/api/pedidos/{pedido_id}/pago", tags=["pedidos"])
 def pagar(pedido_id: int, cuerpo: dict, cliente=Depends(cliente_actual), con=Depends(con_base),
-          idempotency_key: str | None = Header(default=None)):
+          idempotency_key: str | None = Header(default=None),
+          desde: str | None = Header(default=None, alias="X-Desde")):
     """Cuerpo: {"tarjeta": "4242 4242 4242 4242", "meses": 0}. Encabezado opcional Idempotency-Key.
 
     R11: si repites el cobro con la misma llave, se cobra una sola vez y te contesta lo mismo. Si la pasarela no
@@ -450,6 +445,11 @@ def pagar(pedido_id: int, cuerpo: dict, cliente=Depends(cliente_actual), con=Dep
     llave = (idempotency_key or "").strip() or f"auto-{uuid.uuid4()}"
     tarjeta = str(cuerpo.get("tarjeta", "")).replace(" ", "")
     meses = cuerpo.get("meses", 0) or 0
+    if (desde or "").strip().lower() == "pagina" and datos.error_encendido(con, "E8"):
+        # E8 «la página no deja pagar»: al pago que manda la página se le contesta que salió bien, pero no se cobra
+        # y el pedido se queda «creado». Sin esa marca (una colección, curl) la API cobra igual: E8 es de la página.
+        _pedido_de(con, pedido_id, cliente["id"])
+        return {"mensaje": t("ok.pago_aprobado"), "llave": llave}
     e2 = datos.error_encendido(con, "E2")
     e4 = datos.error_encendido(con, "E4")
     if e2:
@@ -574,7 +574,8 @@ def control_reinicio(con=Depends(con_base)):
     pasarela.reiniciada(vieja)
     with _registro_candado:
         _registro.clear()
-    return {"mensaje": t("ok.reinicio")}
+    # Reiniciar NO cierra el lunes (es un dato de la tienda que sigue igual), y lo dice: el `tienda` avisa.
+    return {"mensaje": t("ok.reinicio"), "lunes": datos.lunes_activo(con)}
 
 
 @app.get("/control/peticiones", include_in_schema=False, dependencies=[Depends(solo_adentro)])
@@ -586,16 +587,47 @@ def control_peticiones():
 
 @app.get("/control/errores", include_in_schema=False, dependencies=[Depends(solo_adentro)])
 def control_errores(con=Depends(con_base)):
+    """Qué errores están encendidos. En modo lunes NO lo dice: contesta solo {"lunes": true}."""
+    if datos.lunes_activo(con):
+        return {"lunes": True}
     return {e: datos.error_encendido(con, e) for e in datos.ERRORES}
 
 
 @app.put("/control/errores/{error}", include_in_schema=False, dependencies=[Depends(solo_adentro)])
 def control_error(error: str, cuerpo: dict, con=Depends(con_base)):
+    """Enciende o apaga uno. En modo lunes no actúa (423): apagar uno a mano sería la forma de averiguar cuáles son."""
+    if datos.lunes_activo(con):
+        raise ReglaRota("error.lunes_no_cambia", 423)
     error = error.upper()
     if error not in datos.ERRORES:
         raise ReglaRota("error.no_hay_error", 404, error=error, errores=", ".join(datos.ERRORES))
     datos.escribir_control(con, f"error.{error}", "on" if cuerpo.get("encendido") else "off")
     return {e: datos.error_encendido(con, e) for e in datos.ERRORES}
+
+
+@app.get("/control/lunes", include_in_schema=False, dependencies=[Depends(solo_adentro)])
+def control_lunes_estado(con=Depends(con_base)):
+    """{"activo": true} en modo lunes; si no, también cuántos errores trae el lunes, para que el `verifica 14` los
+    pruebe uno por uno sin saber sus nombres. Con el lunes abierto ni siquiera dice cuántos."""
+    if datos.lunes_activo(con):
+        return {"activo": True}
+    return {"activo": False, "cuantos": len(datos.LUNES)}
+
+
+@app.put("/control/lunes", include_in_schema=False, dependencies=[Depends(solo_adentro)])
+def control_lunes(cuerpo: dict, con=Depends(con_base)):
+    """{"encendido": true} abre el lunes; {"encendido": true, "solo": 2} abre solo el segundo error del lunes (lo usa
+    el `verifica 14`); {"encendido": false} lo cierra y deja los errores como estaban. Contesta "ya": true si no
+    cambió nada, y al cerrar, cuántos errores había encendido el lunes."""
+    if cuerpo.get("encendido"):
+        solo = cuerpo.get("solo")
+        if solo is not None and (not isinstance(solo, int) or isinstance(solo, bool)
+                                 or not 1 <= solo <= len(datos.LUNES)):
+            raise ReglaRota("error.lunes_solo", 422, maximo=len(datos.LUNES))
+        n = datos.abrir_lunes(con, solo)
+        return {"activo": True, "ya": n == 0}
+    n = datos.cerrar_lunes(con)
+    return {"activo": False, "ya": n == 0, "eran": n}
 
 
 @app.put("/control/reloj", include_in_schema=False, dependencies=[Depends(solo_adentro)])

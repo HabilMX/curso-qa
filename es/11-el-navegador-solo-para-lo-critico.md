@@ -111,9 +111,10 @@ newman run tienda.postman_collection.json -e local.postman_environment.json
 ```
 
 Sale **verde**: las mismas siete palomitas de la lección 07. La colección de la lección 10, la de la pasarela, también:
-seis de seis (medido con E8 encendido). No es un descuido de tus colecciones. E8 vive **en la página**: el botón «Pagar» crea el pedido y no manda
-el pago, pero escribe el mensaje de pagado de todos modos. La API hace bien todo lo que le piden; lo que falla es lo
-que la página deja de pedirle. Una prueba que le habla a la API, por buena que sea, no puede verlo.
+seis de seis (medido con E8 encendido). No es un descuido de tus colecciones. E8 solo le pega **al pago que llega desde la página**: cuando Marta da
+clic en «Pagar», la tienda le contesta que sí, la página escribe el mensaje de pagado, y el pedido no se cobra. Si el
+pago llega directo por la API, como en tu colección, se cobra bien. Una prueba que le habla a la API, por buena que
+sea, no pasa por ese botón y no puede verlo.
 
 Para encontrar este error hay que hacer lo que hace Marta: abrir la página, dar clic y mirar.
 
@@ -483,8 +484,8 @@ permisos, los pagos. Esta lección probó lo único que la API no puede ver: lo 
 
 Lo que te llevas de aquí:
 
-- **Hay errores que solo se ven en la página.** Con E8, la API está perfecta y Marta no puede comprar. Ninguna
-  colección lo ve.
+- **Hay errores que solo se ven en la página.** Con E8, tu colección paga sin problema y Marta no puede comprar
+  desde la página. Ninguna colección lo ve.
 - **Una prueba de navegador revisa lo que la tienda guardó, no lo que la página dice.** El mensaje de pagado salía
   igual con E8; el estado del pedido, no.
 - **Busca los elementos por algo que no cambie:** en una página de cinco idiomas, el test id y no el texto.
@@ -497,8 +498,8 @@ En la lección 12 llevas lo que encontraste a quien lo tiene que arreglar: un re
 
 ## Compara tus respuestas
 
-**Paso 1, la predicción.** **Verde**, las siete palomitas. Tu colección paga por la API, y la API funciona. E8 está en el
-botón de la página, que tu colección nunca toca.
+**Paso 1, la predicción.** **Verde**, las siete palomitas. Tu colección paga por la API, y la API funciona. E8 solo le pega al
+pago que llega desde el botón de la página, y tu colección nunca pasa por él.
 
 **Paso 3, la predicción.** Tarda un poco más que tu colección: en la medición, 1.4 segundos contra 1.1 (mediana de
 cinco corridas cada uno). Si predijiste mucho más, no es raro: en esta tienda chica la diferencia es poca, y el paso 5
@@ -516,7 +517,7 @@ Medido: las dos corridas imprimen «✅ la clienta compró y su pedido quedó pa
 |---|---|---|
 | El cupón se usa una sola vez | API | La regla vive en la API; tu script de la lección 09 la revisa en segundos, también con dos pedidos al mismo tiempo |
 | Luis no ve los pedidos de Marta | API | El permiso lo decide la API; una página que esconde un botón no protege nada si la API contesta |
-| El botón «Pagar» manda el pago | Navegador | Solo se ve en la página: con E8 la API está bien y nadie le pide cobrar |
+| El botón «Pagar» manda el pago | Navegador | Solo se ve en la página: con E8, el pago que manda el botón no se cobra, y el de tu colección sí |
 | El cobro tardío deja el pedido pagado | API | Pasa entre la tienda y la pasarela, después de que la página ya contestó |
 | Marta entra, compra y la ve pagada | Navegador | Es el recorrido que no puede fallar; si falla, la tienda no vende |
 | El «Agregar» de cada producto | Navegador, pero **uno**, no todos | Cada producto usa el mismo botón y la misma llamada; probar uno en el navegador revisa el botón, y los precios de todos se revisan más rápido por la API |

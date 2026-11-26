@@ -54,7 +54,7 @@ La primera vez construye la imagen y luego te deja en la terminal de la tienda. 
 | 11 | [El navegador, solo para lo crítico](11-el-navegador-solo-para-lo-critico.md) | Una prueba de navegador para lo que solo se ve en la página, y por qué se usa poco |
 | 12 | [Reportar para que lo arreglen](12-reportar-para-que-lo-arreglen.md) | Un reporte con pasos que cualquiera puede pegar y reproducir, con severidad y prioridad |
 | 13 | [¿Tu prueba sirve?](13-tu-prueba-sirve.md) | Sembrar errores para saber cuáles ven tus pruebas, y encontrar la prueba que protege un error |
-| 14 | Junta todo: la historia del lunes | Una historia completa, probada por riesgo con todo lo anterior, y dónde quedas frente al examen ISTQB CTFL |
+| 14 | [Junta todo: la historia del lunes](14-junta-todo-la-historia-del-lunes.md) | Una historia completa, probada por riesgo con todo lo anterior, y dónde quedas frente al examen ISTQB CTFL |
 
 Cada lección termina con su `verifica`, que corre tu trabajo contra la tienda limpia y con el error de la lección
 encendido, y te dice qué falta.

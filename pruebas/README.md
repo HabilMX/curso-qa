@@ -14,7 +14,7 @@ sus pruebas: por eso ni la ayuda de `tienda`, ni la de `./practicar`, ni el READ
 | E5 «pedido ajeno» | La consulta de un pedido no revisa de quién es; cancelar y pagar sí | `api.py` |
 | E6 «fecha en UTC» | El pedido nace con la hora en UTC y sin zona: de noche cae en el día siguiente, el 31-dic en el año siguiente | `api.py` |
 | E7 «el cargo que llega tarde no se concilia» | El cargo que llega después del 504 se anota y nada más: el pedido sigue «creado» con dinero cobrado | `pasarela.py` |
-| E8 «la página no deja pagar» | El botón «Pagar» de la página crea el pedido pero no manda el pago, y aun así dice que quedó pagado; la API no cambia | `api.py` (sirve `app.js`), `pagina/app.js` |
+| E8 «la página no deja pagar» | El botón «Pagar» de la página crea el pedido y la tienda no cobra el pago que llega marcado «X-Desde: pagina», pero contesta que salió bien; la API sin esa marca no cambia y `app.js` es el mismo con E8 o sin él | `api.py` (`pagar`), `pagina/app.js` |
 
 Qué lección usa cada error lo dice la lección misma (`tienda error EN on`); no se repite aquí para que no se
 desactualice.

@@ -56,7 +56,7 @@ utiliser `verifica 00`, la commande qui contrôle ton travail à la fin de chaqu
 | 11 | [Le navigateur, seulement pour ce qui est critique](11-el-navegador-solo-para-lo-critico.md) | Un test de navigateur pour ce qui ne se voit que sur la page, et pourquoi on s'en sert peu |
 | 12 | [Signaler pour qu'on le corrige](12-reportar-para-que-lo-arreglen.md) | Un rapport avec des étapes que n'importe qui peut coller et reproduire, avec gravité et priorité |
 | 13 | [Ton test sert-il à quelque chose ?](13-tu-prueba-sirve.md) | Planter des erreurs pour savoir lesquelles tes tests voient, et trouver le test qui protège une erreur |
-| 14 | Rassemble tout : l'histoire du lundi | Une histoire complète, testée par risque avec tout ce qui précède, et ta place par rapport à l'examen ISTQB CTFL |
+| 14 | [Rassemble tout : l'histoire du lundi](14-junta-todo-la-historia-del-lunes.md) | Une histoire complète, testée par risque avec tout ce qui précède, et ta place par rapport à l'examen ISTQB CTFL |
 
 Chaque leçon se termine par son `verifica`, qui exécute ton travail contre la boutique propre et contre la boutique
 avec l'erreur de la leçon activée, et te dit ce qui manque.

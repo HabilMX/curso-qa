@@ -23,11 +23,13 @@ RUN pip install -r /tmp/requisitos.txt \
  && rm -rf /var/lib/apt/lists/* /tmp/requisitos.txt
 
 # Dos usuarios: «tienda» corre la tienda y es dueño de su código; «alumno» es quien entra a practicar.
-# El código de la tienda (y de sus errores sembrados) no lo puede leer el alumno; el catálogo de pasos sí.
+# El código de la tienda (y de sus errores sembrados) no lo puede leer el alumno; el catálogo de pasos sí. Sus datos
+# tampoco (0700): ahí se ve qué errores están encendidos, y el modo lunes (L14) es a ciegas.
 RUN useradd --create-home --shell /bin/bash alumno \
  && useradd --system --home /var/lib/tienda --shell /usr/sbin/nologin tienda \
  && mkdir -p /var/lib/tienda /home/alumno/practica \
- && chown tienda:tienda /var/lib/tienda && chown alumno:alumno /home/alumno/practica
+ && chown tienda:tienda /var/lib/tienda && chmod 0700 /var/lib/tienda \
+ && chown alumno:alumno /home/alumno/practica
 
 COPY --chown=tienda:tienda --chmod=0700 tienda /opt/tienda/tienda
 COPY --chmod=0755 pasos_tienda /opt/pasos/pasos_tienda

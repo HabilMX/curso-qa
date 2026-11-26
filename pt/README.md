@@ -54,7 +54,7 @@ Na primeira vez, o comando constrói a imagem e depois deixa você no terminal d
 | 11 | [O navegador, só para o crítico](11-el-navegador-solo-para-lo-critico.md) | Um teste de navegador para o que só se vê na página, e por que ele é pouco usado |
 | 12 | [Reportar para que consertem](12-reportar-para-que-lo-arreglen.md) | Um relatório com passos que qualquer pessoa pode colar e reproduzir, com severidade e prioridade |
 | 13 | [Seu teste serve?](13-tu-prueba-sirve.md) | Plantar erros para saber quais os seus testes enxergam, e achar o teste que protege um erro |
-| 14 | Junte tudo: a história de segunda-feira | Uma história completa, testada por risco com tudo o que veio antes, e onde você fica em relação ao exame ISTQB CTFL |
+| 14 | [Junte tudo: a história de segunda-feira](14-junta-todo-la-historia-del-lunes.md) | Uma história completa, testada por risco com tudo o que veio antes, e onde você fica em relação ao exame ISTQB CTFL |
 
 Cada lição termina com o seu `verifica`, que roda o seu trabalho contra a loja limpa e contra a loja com o erro da
 lição ligado, e diz o que falta.

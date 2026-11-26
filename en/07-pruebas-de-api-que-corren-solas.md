@@ -517,11 +517,14 @@ verifica 07
 
 `verifica`:
 
-1. runs your collection with your environment and the store clean: it has to come out **green**;
-2. runs it with E1 switched on: **at least one test has to come out red**; if it comes out green, your collection was
+1. checks that your collection has the lesson’s three requests, in order: the product, the sign-in and the cart. It
+   recognizes them by what they do (the method and the path), not by what you named them, and if you added others,
+   they don’t get in the way;
+2. runs your collection with your environment and the store clean: it has to come out **green**;
+3. runs it with E1 switched on: **at least one test has to come out red**; if it comes out green, your collection was
    not looking at the shipping;
-3. runs it with an environment it builds itself, with Luis, and checks that your collection signed in **as Luis**;
-4. checks that no request has the address, `Marta` or her password written by hand.
+4. runs it with an environment it builds itself, with Luis, and checks that your collection signed in **as Luis**;
+5. checks that no request has the address, `Marta` or her password written by hand.
 
 If something is missing, it tells you which request and what to fix. Before running it, the list below tells you
 whether the form is right.

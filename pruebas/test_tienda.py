@@ -616,13 +616,38 @@ def test_e8_no_cambia_la_api(tienda):
     assert r.status_code == 200 and r.json()["pedido"]["estado"] == "pagado"
 
 
-@pytest.mark.parametrize("encendido, paga", [(False, "true"), (True, "false")])
-def test_e8_la_pagina_no_manda_el_pago(tienda, encendido, paga):
+def test_el_guion_de_la_pagina_no_cambia_con_e8(tienda):
+    """El alumno puede leer app.js: si su texto cambiara con E8, delataría cuál está encendido (L14, modo lunes)."""
+    apagado = tienda.get("/estaticos/app.js")
+    error(tienda, "E8")
+    encendido = tienda.get("/estaticos/app.js")
+    assert apagado.status_code == encendido.status_code == 200
+    assert encendido.headers["cache-control"] == "no-store"
+    assert apagado.text == encendido.text
+    assert '"X-Desde": "pagina"' in encendido.text and '"data-testid": `agregar-${p.id}`' in encendido.text
+
+
+@pytest.mark.parametrize("encendido, estado", [(False, "pagado"), (True, "creado")])
+def test_e8_el_pago_de_la_pagina_no_cobra(tienda, encendido, estado):
+    """E8: al pago que manda la página se le contesta 200, pero no cobra y el pedido sigue «creado»."""
+    h = sesion(tienda)
     error(tienda, "E8", encendido)
-    r = tienda.get("/estaticos/app.js")
-    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
-    assert f"const LA_PAGINA_PAGA = {paga};" in r.text
-    assert '"data-testid": `agregar-${p.id}`' in r.text
+    llenar(tienda, h, playera_azul=1)
+    pid = tienda.post("/api/pedidos", headers=h).json()["id"]
+    r = tienda.post(f"/api/pedidos/{pid}/pago", json={"tarjeta": "4242424242424242"},
+                    headers={**h, "Idempotency-Key": f"e8-pagina-{encendido}", "X-Desde": "pagina"})
+    assert r.status_code == 200, r.text
+    assert tienda.get(f"/api/pedidos/{pid}", headers=h).json()["estado"] == estado
+
+
+def test_e8_el_pago_de_la_pagina_no_salta_la_regla_del_pedido_ajeno(tienda):
+    h, otra = sesion(tienda), sesion(tienda, "Luis")
+    error(tienda, "E8")
+    llenar(tienda, h, playera_azul=1)
+    pid = tienda.post("/api/pedidos", headers=h).json()["id"]
+    r = tienda.post(f"/api/pedidos/{pid}/pago", json={"tarjeta": "4242424242424242"},
+                    headers={**otra, "X-Desde": "pagina"})
+    assert r.status_code == 404, r.text
 
 
 def test_la_hoja_de_estilo_se_sigue_sirviendo(tienda):

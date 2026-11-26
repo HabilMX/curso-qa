@@ -160,17 +160,15 @@ $("form-cupon").addEventListener("submit", async (e) => {
   await pintarCarrito();
 });
 
-const LA_PAGINA_PAGA = true;
-
 $("form-pago").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     const pedido = await api("POST", "/api/pedidos");
     const llave = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-    if (LA_PAGINA_PAGA) {
-      await api("POST", `/api/pedidos/${pedido.id}/pago`, { tarjeta: $("tarjeta").value, meses: Number($("meses").value) },
-        { "Idempotency-Key": llave });
-    }
+    // «X-Desde: pagina» dice que el pago lo manda la página. Este guion es siempre el mismo: lo que hace la
+    // tienda con ese pago se decide del lado del servidor.
+    await api("POST", `/api/pedidos/${pedido.id}/pago`, { tarjeta: $("tarjeta").value, meses: Number($("meses").value) },
+      { "Idempotency-Key": llave, "X-Desde": "pagina" });
     decir(T("pagina.pedido_pagado", { id: pedido.id }));
   } catch (err) {
     decir(err.message, "error");

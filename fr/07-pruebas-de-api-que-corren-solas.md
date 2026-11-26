@@ -526,12 +526,15 @@ verifica 07
 
 Le `verifica` :
 
-1. lance ta collection avec ton environnement et la boutique propre : elle doit sortir **verte** ;
-2. la lance avec E1 activée : **au moins un test doit sortir rouge** ; s'il sort vert, ta collection ne regardait pas
+1. vérifie que ta collection a les trois requêtes de la leçon, dans l'ordre : le produit, la connexion et le panier.
+   Il les reconnaît à ce qu'elles font (la méthode et le chemin), pas au nom que tu leur as donné, et si tu en as
+   ajouté d'autres, elles ne gênent pas ;
+2. lance ta collection avec ton environnement et la boutique propre : elle doit sortir **verte** ;
+3. la lance avec E1 activée : **au moins un test doit sortir rouge** ; s'il sort vert, ta collection ne regardait pas
    la livraison ;
-3. la lance avec un environnement qu'il monte lui-même, avec Luis, et vérifie que ta collection s'est connectée
+4. la lance avec un environnement qu'il monte lui-même, avec Luis, et vérifie que ta collection s'est connectée
    **en tant que Luis** ;
-4. vérifie qu'aucune requête n'a écrit à la main l'adresse, `Marta` ou son mot de passe.
+5. vérifie qu'aucune requête n'a écrit à la main l'adresse, `Marta` ou son mot de passe.
 
 S'il manque quelque chose, il te dit quelle requête et quoi corriger. Avant de l'exécuter, la liste ci-dessous te dit
 si la forme est bonne.

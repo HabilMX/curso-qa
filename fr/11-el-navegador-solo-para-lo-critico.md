@@ -117,10 +117,10 @@ newman run tienda.postman_collection.json -e local.postman_environment.json
 ```
 
 Elle sort **verte** : les mêmes sept coches que dans la leçon 07. Celle de la leçon 10, celle de la passerelle, aussi :
-six sur six (mesuré avec E8 activée). Ce n'est pas un oubli de tes collections. E8 vit **dans la page** : le bouton
-« Payer » crée la commande et n'envoie pas le paiement, mais il écrit quand même le message de paiement. L'API fait
-bien tout ce qu'on lui demande ; ce qui échoue, c'est ce que la page cesse de lui demander. Un test qui parle à l'API,
-aussi bon soit-il, ne peut pas le voir.
+six sur six (mesuré avec E8 activée). Ce n'est pas un oubli de tes collections. E8 ne touche que **le paiement qui arrive depuis la page** : quand
+Marta clique sur « Payer », la boutique répond que oui, la page écrit le message de paiement, et la commande n'est pas
+prélevée. Si le paiement arrive directement par l'API, comme dans ta collection, il est bien prélevé. Un test qui parle
+à l'API, aussi bon soit-il, ne passe pas par ce bouton et ne peut pas le voir.
 
 Pour trouver cette erreur, il faut faire ce que fait Marta : ouvrir la page, cliquer et regarder.
 
@@ -501,8 +501,8 @@ avec elle.
 
 Ce que tu en retires :
 
-- **Il y a des erreurs qui ne se voient que dans la page.** Avec E8, l'API est parfaite et Marta ne peut pas acheter.
-  Aucune collection ne le voit.
+- **Il y a des erreurs qui ne se voient que dans la page.** Avec E8, ta collection paie sans problème et Marta ne peut pas acheter
+  depuis la page. Aucune collection ne le voit.
 - **Un test de navigateur vérifie ce que la boutique a enregistré, pas ce que la page dit.** Le message de paiement
   sortait pareil avec E8 ; l'état de la commande, non.
 - **Cherche les éléments par quelque chose qui ne change pas :** dans une page en cinq langues, le test id et pas le
@@ -517,8 +517,8 @@ lecture.
 
 ## Compare tes réponses
 
-**Étape 1, la prédiction.** **Vert**, les sept coches. Ta collection paie par l'API, et l'API fonctionne. E8 est dans
-le bouton de la page, que ta collection ne touche jamais.
+**Étape 1, la prédiction.** **Vert**, les sept coches. Ta collection paie par l'API, et l'API fonctionne. E8 ne touche que
+le paiement qui arrive depuis le bouton de la page, et ta collection ne passe jamais par lui.
 
 **Étape 3, la prédiction.**
 
@@ -539,7 +539,7 @@ Mesuré : les deux lancements affichent « ✅ la cliente a acheté et sa comman
 |---|---|---|
 | Le coupon ne s'utilise qu'une fois | API | La règle vit dans l'API ; ton script de la leçon 09 la vérifie en quelques secondes, même avec deux commandes en même temps |
 | Luis ne voit pas les commandes de Marta | API | La permission, c'est l'API qui la décide ; une page qui cache un bouton ne protège rien si l'API répond |
-| Le bouton « Payer » envoie le paiement | Navigateur | Cela ne se voit que dans la page : avec E8 l'API va bien et personne ne lui demande de prélever |
+| Le bouton « Payer » envoie le paiement | Navigateur | Cela ne se voit que dans la page : avec E8, le paiement que le bouton envoie n'est pas prélevé, et celui de ta collection l'est |
 | Le paiement tardif laisse la commande payée | API | Cela se passe entre la boutique et la passerelle, après que la page a déjà répondu |
 | Marta se connecte, achète et la voit payée | Navigateur | C'est le parcours qui ne peut pas échouer ; s'il échoue, la boutique ne vend pas |
 | Le « Ajouter au panier » de chaque produit | Navigateur, mais **un seul**, pas tous | Chaque produit utilise le même bouton et le même appel ; en tester un dans le navigateur vérifie le bouton, et les prix de tous se vérifient plus vite par l'API |

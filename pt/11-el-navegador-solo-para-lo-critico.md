@@ -110,9 +110,10 @@ newman run tienda.postman_collection.json -e local.postman_environment.json
 ```
 
 Sai **verde**: os mesmos sete vistos da lição 07. A coleção da lição 10, a do gateway, também: seis de seis (medido com
-E8 ligado). Não é um descuido das suas coleções. O E8 vive **na página**: o botão «Pagar» cria o pedido e não manda o
-pagamento, mas escreve a mensagem de pago do mesmo jeito. A API faz bem tudo o que lhe pedem; o que falha é o que a
-página deixa de pedir a ela. Um teste que fala com a API, por melhor que seja, não consegue ver isso.
+E8 ligado). Não é um descuido das suas coleções. O E8 só atinge **o pagamento que chega da página**: quando a
+Marta clica em «Pagar», a loja responde que sim, a página escreve a mensagem de pago, e o pedido não é cobrado. Se o
+pagamento chega direto pela API, como na sua coleção, ele é cobrado normalmente. Um teste que fala com a API, por
+melhor que seja, não passa por esse botão e não consegue ver isso.
 
 Para encontrar este erro é preciso fazer o que a Marta faz: abrir a página, clicar e olhar.
 
@@ -479,8 +480,8 @@ pagamentos. Esta lição testou a única coisa que a API não consegue ver: o qu
 
 O que você leva daqui:
 
-- **Há erros que só se veem na página.** Com E8, a API está perfeita e a Marta não consegue comprar. Nenhuma coleção vê
-  isso.
+- **Há erros que só se veem na página.** Com E8, a sua coleção paga sem problema e a Marta não consegue comprar
+  pela página. Nenhuma coleção vê isso.
 - **Um teste de navegador confere o que a loja guardou, não o que a página diz.** A mensagem de pago saía igual com E8;
   o estado do pedido, não.
 - **Procure os elementos por algo que não mude:** numa página em cinco idiomas, o test id e não o texto.
@@ -493,8 +494,8 @@ Na lição 12 você leva o que encontrou a quem tem de consertar: um relatório 
 
 ## Compare as respostas
 
-**Passo 1, a previsão.** **Verde**, os sete vistos. A sua coleção paga pela API, e a API funciona. O E8 está no botão da
-página, em que a sua coleção nunca toca.
+**Passo 1, a previsão.** **Verde**, os sete vistos. A sua coleção paga pela API, e a API funciona. O E8 só atinge o
+pagamento que chega do botão da página, e a sua coleção nunca passa por ele.
 
 **Passo 3, a previsão.**
 
@@ -514,7 +515,7 @@ Medido: as duas rodadas imprimem «✅ a cliente comprou e o pedido dela ficou p
 |---|---|---|
 | O cupom se usa uma única vez | API | A regra vive na API; o seu script da lição 09 a confere em segundos, também com dois pedidos ao mesmo tempo |
 | O Luis não vê os pedidos da Marta | API | A permissão quem decide é a API; uma página que esconde um botão não protege nada se a API responde |
-| O botão «Pagar» manda o pagamento | Navegador | Só se vê na página: com E8 a API está bem e ninguém pede a ela que cobre |
+| O botão «Pagar» manda o pagamento | Navegador | Só se vê na página: com E8, o pagamento que o botão manda não é cobrado, e o da sua coleção é |
 | A cobrança tardia deixa o pedido pago | API | Acontece entre a loja e o gateway, depois de a página já ter respondido |
 | A Marta entra, compra e a vê paga | Navegador | É o percurso que não pode falhar; se falha, a loja não vende |
 | O «Adicionar ao carrinho» de cada produto | Navegador, mas **um**, não todos | Cada produto usa o mesmo botão e a mesma chamada; testar um no navegador confere o botão, e os preços de todos se conferem mais rápido pela API |

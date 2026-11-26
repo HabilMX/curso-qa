@@ -112,10 +112,10 @@ newman run tienda.postman_collection.json -e local.postman_environment.json
 ```
 
 It comes out **green**: the same seven check marks as in lesson 07. The lesson 10 collection, the gateway one, too: six
-out of six (measured with E8 switched on). It is not a slip in your collections. E8 lives **on the page**: the «Pay»
-button creates the order and does not send the payment, but it writes the paid message anyway. The API does well
-everything it is asked; what fails is what the page stops asking it. A test that talks to the API, however good, cannot
-see it.
+out of six (measured with E8 switched on). It is not a slip in your collections. E8 only hits **the payment that comes from the page**: when
+Marta clicks «Pay», the store answers yes, the page writes the paid message, and the order is not charged. If the
+payment comes straight through the API, as in your collection, it is charged fine. A test that talks to the API, however
+good, does not go through that button and cannot see it.
 
 To find this error you have to do what Marta does: open the page, click and look.
 
@@ -482,8 +482,8 @@ permissions, payments. This lesson tested the only thing the API cannot see: wha
 
 What you take from here:
 
-- **There are errors that are only seen on the page.** With E8, the API is perfect and Marta cannot buy. No collection
-  sees it.
+- **There are errors that are only seen on the page.** With E8, your collection pays without a problem and Marta cannot buy
+  from the page. No collection sees it.
 - **A browser test checks what the store saved, not what the page says.** The paid message came out the same with E8;
   the order’s status did not.
 - **Find the elements by something that does not change:** on a page in five languages, the test id and not the text.
@@ -497,7 +497,7 @@ In lesson 12 you take what you found to whoever has to fix it: a report that is 
 ## Compare your answers
 
 **Step 1, the prediction.** **Green**, the seven check marks. Your collection pays through the API, and the API works.
-E8 is in the page’s button, which your collection never touches.
+E8 only hits the payment that comes from the page’s button, and your collection never goes through it.
 
 **Step 3, the prediction.**
 
@@ -518,7 +518,7 @@ Measured: both runs print «✅ the customer bought and her order ended up paid�
 |---|---|---|
 | The coupon is used only once | API | The rule lives in the API; your lesson 09 script checks it in seconds, also with two orders at the same time |
 | Luis does not see Marta’s orders | API | The API decides the permission; a page that hides a button protects nothing if the API answers |
-| The «Pay» button sends the payment | Browser | It is only seen on the page: with E8 the API is fine and nobody asks it to charge |
+| The «Pay» button sends the payment | Browser | It is only seen on the page: with E8, the payment the button sends is not charged, and the one from your collection is |
 | The late charge leaves the order paid | API | It happens between the store and the gateway, after the page has already answered |
 | Marta signs in, buys and sees it paid | Browser | It is the journey that cannot fail; if it fails, the store does not sell |
 | The «Add to cart» of each product | Browser, but **one**, not all | Every product uses the same button and the same call; testing one in the browser checks the button, and the prices of all of them are checked faster through the API |

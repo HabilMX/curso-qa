@@ -13,6 +13,10 @@ from zoneinfo import ZoneInfo
 
 ZONA = ZoneInfo("America/Mexico_City")
 ERRORES = ("E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8")
+# El modo lunes (L14): los errores que enciende `tienda lunes`, en este orden. Viven SOLO aquí, en el código de la
+# tienda, que el alumno no puede leer: ni el `tienda`, ni el `verifica`, ni los textos los nombran. El `verifica 14`
+# los pide por su número de orden (1 a 4), nunca por su nombre.
+LUNES = ("E1", "E3", "E5", "E8")
 
 # (id, nombre, precio en centavos, categoría). Los primeros seis llegan EXACTO a las orillas de las lecciones:
 # 3 playeras azules = $999.00 · azul + azul + gris = $998.99 · la estampa suma o resta un centavo ·
@@ -75,9 +79,20 @@ def ruta() -> Path:
     return Path(os.environ.get("TIENDA_DATOS", Path.home() / ".tienda" / "tienda.db"))
 
 
+def _sellar(carpeta: Path) -> None:
+    """La carpeta de datos, solo para quien corre la tienda. Si el alumno pudiera abrir el SQLite, leería qué errores
+    están encendidos y el modo lunes dejaría de ser a ciegas. Se sella al conectar, no solo en la imagen: un volumen
+    creado con una imagen anterior conserva los permisos con que nació."""
+    try:
+        carpeta.chmod(0o700)
+    except OSError:
+        pass
+
+
 def conectar() -> sqlite3.Connection:
     archivo = ruta()
     archivo.parent.mkdir(parents=True, exist_ok=True)
+    _sellar(archivo.parent)
     con = sqlite3.connect(archivo, timeout=10, isolation_level=None, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
@@ -116,6 +131,41 @@ def escribir_control(con, clave: str, valor: str) -> None:
 
 def error_encendido(con, error: str) -> bool:
     return leer_control(con, f"error.{error}", "off") == "on"
+
+
+# ---------------------------------------------------------------- modo lunes (L14)
+
+def lunes_activo(con) -> bool:
+    return leer_control(con, "lunes.activo", "off") == "on"
+
+
+def abrir_lunes(con, solo: int | None = None) -> int:
+    """Guarda cómo estaban los ocho errores y enciende los del lunes (o solo el número `solo`, del 1 al 4, para el
+    `verifica 14`). Devuelve cuántos encendió. Si ya estaba abierto, no toca nada y devuelve 0."""
+    if lunes_activo(con):
+        return 0
+    cuales = LUNES if solo is None else (LUNES[solo - 1],)
+    with transaccion(con):
+        escribir_control(con, "lunes.antes", ",".join(e for e in ERRORES if error_encendido(con, e)))
+        for e in cuales:
+            escribir_control(con, f"error.{e}", "on")
+        escribir_control(con, "lunes.cuantos", str(len(cuales)))
+        escribir_control(con, "lunes.activo", "on")
+    return len(cuales)
+
+
+def cerrar_lunes(con) -> int:
+    """Deja los ocho errores como estaban antes del lunes y devuelve cuántos había encendido el lunes (0 si no
+    estaba abierto)."""
+    if not lunes_activo(con):
+        return 0
+    with transaccion(con):
+        antes = set(filter(None, leer_control(con, "lunes.antes").split(",")))
+        for e in ERRORES:
+            escribir_control(con, f"error.{e}", "on" if e in antes else "off")
+        cuantos = int(leer_control(con, "lunes.cuantos", "0"))
+        escribir_control(con, "lunes.activo", "off")
+    return cuantos
 
 
 def ahora(con) -> datetime:

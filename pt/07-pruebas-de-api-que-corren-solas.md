@@ -515,11 +515,14 @@ verifica 07
 
 O `verifica`:
 
-1. roda a sua coleção com o seu ambiente e a loja limpa: tem de sair **verde**;
-2. roda-a com E1 ligado: **pelo menos um teste tem de sair vermelho**; se sair verde, a sua coleção não estava olhando
+1. confere que a sua coleção tenha as três requisições da lição, em ordem: o produto, o login e o carrinho. Ele as
+   reconhece pelo que fazem (o método e o caminho), não pelo nome que você deu, e se você acrescentou outras, elas
+   não atrapalham;
+2. roda a sua coleção com o seu ambiente e a loja limpa: tem de sair **verde**;
+3. roda-a com E1 ligado: **pelo menos um teste tem de sair vermelho**; se sair verde, a sua coleção não estava olhando
    o frete;
-3. roda-a com um ambiente que ele mesmo monta, com o Luis, e confere que a sua coleção fez login **como o Luis**;
-4. confere que nenhuma requisição tenha escritos à mão o endereço, `Marta` ou a senha dela.
+4. roda-a com um ambiente que ele mesmo monta, com o Luis, e confere que a sua coleção fez login **como o Luis**;
+5. confere que nenhuma requisição tenha escritos à mão o endereço, `Marta` ou a senha dela.
 
 Se faltar algo, ele diz qual requisição e o que arrumar. Antes de rodá-lo, a lista abaixo diz se a forma está certa.
 

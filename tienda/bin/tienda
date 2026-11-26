@@ -3,6 +3,8 @@
 
   tienda error estado              qué errores sembrados están encendidos
   tienda error E1 on|off           enciende o apaga uno (E1, E2, E3, E4, E5, E6, E7 o E8)
+  tienda lunes                     modo lunes: enciende varios errores sin decir cuáles (lección 14)
+  tienda lunes fin                 termina el modo lunes y dice cuántos errores tenía
   tienda reiniciar                 deja la tienda como recién abierta (los errores se quedan como estaban)
   tienda reloj 2026-12-31T23:59:58 fija la hora de la tienda (hora de la Ciudad de México)
   tienda reloj real                regresa a la hora real
@@ -63,6 +65,9 @@ def salir(texto, codigo=1):
 
 
 def errores(estado):
+    if estado.get("lunes"):
+        print(T("tienda.lunes_estado"))
+        return
     for e, encendido in estado.items():
         print(f"  {e}  {T('tienda.encendido') if encendido else T('tienda.apagado')}")
     avisos(estado)
@@ -70,6 +75,9 @@ def errores(estado):
 
 def avisos(estado):
     """Un aviso por cada error encendido: siguen encendidos aunque se reinicie o se apague la tienda."""
+    if estado.get("lunes"):
+        print(T("tienda.lunes_estado"))
+        return
     encendidos = [e for e, encendido in estado.items() if encendido]
     if encendidos:
         print()
@@ -91,7 +99,18 @@ def main(args):
         else:
             salir(T("tienda.uso_error"), 2)
     elif orden == "reiniciar":
-        print(f"✅ {control('POST', '/control/reinicio')['mensaje']}")
+        r = control("POST", "/control/reinicio")
+        print(f"✅ {r['mensaje']}")
+        if r.get("lunes"):
+            print(T("tienda.lunes_sigue"))
+    elif orden == "lunes" and resto == []:
+        r = control("PUT", "/control/lunes", {"encendido": True})
+        print(T("tienda.lunes_ya") if r["ya"] else T("tienda.lunes_on"))
+    elif orden == "lunes" and resto == ["fin"]:
+        r = control("PUT", "/control/lunes", {"encendido": False})
+        print(T("tienda.lunes_no_estaba") if r["ya"] else T("tienda.lunes_fin", n=r["eran"]))
+    elif orden == "lunes":
+        salir(T("tienda.uso_lunes"), 2)
     elif orden == "reloj" and len(resto) == 1:
         r = control("PUT", "/control/reloj", {"ahora": None if resto[0] == "real" else resto[0]})
         print(T("tienda.hora", hora=r["hora_de_la_tienda"]))

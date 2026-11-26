@@ -1,7 +1,88 @@
-{"info":{"name":"Tienda","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-"item":[
-{"name":"Marta inicia sesión","request":{"method":"POST","url":"{{base}}/api/sesiones","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"cliente\":\"{{cliente}}\",\"contrasena\":\"{{contrasena}}\"}"}},
- "event":[{"listen":"test","script":{"exec":["pm.test('inicia sesión: 201', () => pm.response.to.have.status(201));","pm.collectionVariables.set('token', pm.response.json().token);"]}}]},
-{"name":"Pone 3 playeras de $333.00","request":{"method":"PUT","url":"{{base}}/api/carrito/productos/playera-azul","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}],"body":{"mode":"raw","raw":"{\"cantidad\":3}"}},
- "event":[{"listen":"test","script":{"exec":["pm.test('200', () => pm.response.to.have.status(200));","pm.test('envío gratis en $999.00', () => pm.expect(pm.response.json().envio.texto).to.eql('$0.00'));"]}}]}
-]}
+{
+  "info": {
+    "name": "Tienda",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "La playera azul existe",
+      "request": {
+        "method": "GET",
+        "url": "{{base}}/api/productos/playera-azul"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('código 200', () => pm.response.to.have.status(200));",
+              "pm.test('se llama Playera azul', () => pm.expect(pm.response.json().nombre).to.eql('Playera azul'));",
+              "pm.test('contesta en JSON', () => pm.expect(pm.response.headers.get('content-type')).to.include('application/json'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inicia sesión",
+      "request": {
+        "method": "POST",
+        "url": "{{base}}/api/sesiones",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"cliente\":\"{{cliente}}\",\"contrasena\":\"{{contrasena}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('código 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('token', pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Carrito de $999.00",
+      "request": {
+        "method": "PUT",
+        "url": "{{base}}/api/carrito/productos/playera-azul",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"cantidad\":3}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('código 200', () => pm.response.to.have.status(200));",
+              "pm.test('subtotal $999.00', () => pm.expect(pm.response.json().subtotal.texto).to.eql('$999.00'));",
+              "pm.test('envío gratis', () => pm.expect(pm.response.json().envio.texto).to.eql('$0.00'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
